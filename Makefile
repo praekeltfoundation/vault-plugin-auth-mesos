@@ -1,4 +1,4 @@
-.PHONY: build clean test help default
+.PHONY: build clean test help default lint
 
 PROJECT=github.com/praekeltfoundation/vault-plugin-auth-mesos
 
@@ -15,8 +15,9 @@ help:
 	@echo
 	@echo 'Usage:'
 	@echo '    make build           Compile the project.'
-	@echo '    make get-deps        runs dep ensure, mostly used for ci.'
+	@echo '    make get-deps        Run dep ensure, mostly used for ci.'
 	@echo '    make test            Run tests on a compiled project.'
+	@echo '    make lint            Run gometalinter.'
 	@echo '    make clean           Clean the directory tree.'
 	@echo
 
@@ -33,3 +34,6 @@ clean:
 
 test:
 	go test -race -coverprofile=coverage.txt -covermode=atomic
+
+lint:
+	gometalinter --vendor --tests --deadline=120s ./...

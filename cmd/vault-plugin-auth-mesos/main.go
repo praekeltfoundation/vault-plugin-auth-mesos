@@ -17,7 +17,9 @@ func main() {
 	flags := apiClientMeta.FlagSet()
 	versionFlag := flags.Bool("version", false, "Print version information and exit.")
 
-	flags.Parse(os.Args[1:])
+	if err := flags.Parse(os.Args[1:]); err != nil {
+		log.Fatal(err)
+	}
 
 	if *versionFlag {
 		reportVersion()

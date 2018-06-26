@@ -20,4 +20,4 @@ install:
 
 script:
   - make test
-  - gometalinter --tests --deadline=120s
+  - make lint
