@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -14,29 +13,16 @@ import (
 )
 
 func main() {
-	versionFlag := flag.Bool("version", false, "Version")
-	flag.Parse()
+	apiClientMeta := &pluginutil.APIClientMeta{}
+	flags := apiClientMeta.FlagSet()
+	versionFlag := flags.Bool("version", false, "Print version information and exit.")
+
+	flags.Parse(os.Args[1:])
 
 	if *versionFlag {
 		reportVersion()
 		return
 	}
-
-	runPlugin()
-}
-
-func reportVersion() {
-	fmt.Println("Git Commit:", version.GitCommit)
-	fmt.Println("Version:", version.Version)
-	if version.VersionPrerelease != "" {
-		fmt.Println("Version PreRelease:", version.VersionPrerelease)
-	}
-}
-
-func runPlugin() {
-	apiClientMeta := &pluginutil.APIClientMeta{}
-	flags := apiClientMeta.FlagSet()
-	flags.Parse(os.Args[1:])
 
 	tlsConfig := apiClientMeta.GetTLSConfig()
 	tlsProviderFunc := pluginutil.VaultPluginTLSProvider(tlsConfig)
@@ -46,5 +32,13 @@ func runPlugin() {
 		TLSProviderFunc:    tlsProviderFunc,
 	}); err != nil {
 		log.Fatal(err)
+	}
+}
+
+func reportVersion() {
+	fmt.Println("Git Commit:", version.GitCommit)
+	fmt.Println("Version:", version.Version)
+	if version.VersionPrerelease != "" {
+		fmt.Println("Version PreRelease:", version.VersionPrerelease)
 	}
 }
