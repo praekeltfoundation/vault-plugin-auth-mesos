@@ -1,0 +1,16 @@
+language: go
+
+go:
+  - 1.10.x
+  - master
+
+before_install:
+  - go get github.com/alecthomas/gometalinter
+  - gometalinter --install
+
+install:
+  - make get-deps
+
+script:
+  - make test
+  - gometalinter --tests --deadline=120s
