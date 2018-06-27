@@ -31,7 +31,7 @@ func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend,
 	if err := b.Setup(ctx, conf); err != nil {
 		return nil, err
 	}
-	return b, nil
+	return &b, nil
 }
 
 // TODO: Make this useful or get rid of it.
