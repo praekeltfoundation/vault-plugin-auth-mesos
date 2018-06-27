@@ -37,6 +37,15 @@ func (ts *TestSuite) AddCleanup(f func()) {
 	ts.cleanups = append([]func(){f}, ts.cleanups...)
 }
 
+// SetupTest clears all our TestSuite state at the start of each test, because
+// the same object is shared across all tests.
+func (ts *TestSuite) SetupTest() {
+	ts.cleanups = []func(){}
+	ts.storage = nil
+	ts.backend = nil
+}
+
+// TearDownTest calls the registered cleanup functions.
 func (ts *TestSuite) TearDownTest() {
 	for _, f := range ts.cleanups {
 		f()
@@ -53,6 +62,8 @@ func (ts *TestSuite) WithoutError(result interface{}, err error) interface{} {
 	return result
 }
 
+// SetupBackend creates a suitable backend object (and associated storage
+// object) for use in a test.
 func (ts *TestSuite) SetupBackend() {
 	ts.Require().Nil(ts.backend, "Backend already set up.")
 	ts.storage = &logical.InmemStorage{}
@@ -74,6 +85,8 @@ func (ts *TestSuite) mkReq(path string, data jsonobj) *logical.Request {
 	}
 }
 
+// HandleRequest is a thin wrapper around the backend's HandleRequest method to
+// avoid some boilerplate in the tests.
 func (ts *TestSuite) HandleRequest(req *logical.Request) (*logical.Response, error) {
 	ts.Require().NotNil(ts.backend, "Backend not set up.")
 	return ts.backend.HandleRequest(context.Background(), req)
