@@ -1,16 +1,16 @@
 .PHONY: build clean test help default lint
 
-PROJECT=github.com/praekeltfoundation/vault-plugin-auth-mesos
+PROJECT := github.com/praekeltfoundation/vault-plugin-auth-mesos
+BIN_NAME := vault-plugin-auth-mesos
 
-BIN_NAME=vault-plugin-auth-mesos
+NON_CMD_PACKAGES := $(shell go list ./... | fgrep -v '/cmd/')
 
 VERSION := $(shell grep "const Version " version/version.go | sed -E 's/.*"(.+)"$$/\1/')
-GIT_COMMIT=$(shell git rev-parse HEAD)
-GIT_DIRTY=$(shell test -n "`git status --porcelain`" && echo "+CHANGES" || true)
+GIT_COMMIT := $(shell git rev-parse HEAD)
+GIT_DIRTY := $(shell test -n "`git status --porcelain`" && echo "+CHANGES" || true)
 
-NON_CMD_PACKAGES=$(shell go list ./... | fgrep -v '/cmd/')
-
-LDFLAGS="-X ${PROJECT}/version.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X ${PROJECT}/version.VersionPrerelease=DEV"
+LDFLAGS = "-X ${PROJECT}/version.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X ${PROJECT}/version.VersionPrerelease=${VSN_PRERELEASE}"
+VSN_PRERELEASE = DEV
 
 default: test
 
