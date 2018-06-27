@@ -31,3 +31,34 @@ func (ts *TestSuite) Test_login_good_task_id() {
 		LeaseOptions: logical.LeaseOptions{Renewable: true},
 	})
 }
+
+func (ts *TestSuite) Test_renewal_not_logged_in() {
+	ts.SetupBackend()
+
+	req := &logical.Request{
+		Operation:       "renew",
+		Path:            "login",
+		Auth:            nil,
+		Unauthenticated: false,
+	}
+
+	resp, err := ts.HandleRequest(req)
+	ts.EqualError(err, "request has no secret")
+	ts.Nil(resp)
+}
+
+func (ts *TestSuite) Test_renewal_logged_in() {
+	ts.SetupBackend()
+	auth := ts.Login("logged-in-task")
+
+	req := &logical.Request{
+		Operation:       "renew",
+		Path:            "login",
+		Auth:            auth,
+		Unauthenticated: false,
+	}
+
+	resp, err := ts.HandleRequest(req)
+	ts.NoError(err)
+	ts.Equal(auth, resp.Auth)
+}

@@ -91,3 +91,10 @@ func (ts *TestSuite) HandleRequest(req *logical.Request) (*logical.Response, err
 	ts.Require().NotNil(ts.backend, "Backend not set up.")
 	return ts.backend.HandleRequest(context.Background(), req)
 }
+
+func (ts *TestSuite) Login(taskID string) *logical.Auth {
+	req := ts.mkReq("login", jsonobj{"task-id": taskID})
+
+	resp := ts.WithoutError(ts.HandleRequest(req)).(*logical.Response)
+	return resp.Auth
+}
