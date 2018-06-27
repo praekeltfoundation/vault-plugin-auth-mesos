@@ -98,3 +98,9 @@ func (ts *TestSuite) Login(taskID string) *logical.Auth {
 	resp := ts.WithoutError(ts.HandleRequest(req)).(*logical.Response)
 	return resp.Auth
 }
+
+func (ts *TestSuite) ResponseError(resp *logical.Response, errMsg string) {
+	ts.Nil(resp.Auth)
+	ts.Nil(resp.Secret)
+	ts.Equal(resp.Data, jsonobj{"error": errMsg})
+}
