@@ -11,3 +11,13 @@ const Version = "0.1.0"
 // (empty string) then it means that it is a final release. Otherwise, this is
 // a pre-release such as "dev" (in development)
 var VersionPrerelease = ""
+
+// HumanReadable emits a human-readable version string.
+func HumanReadable() string {
+	v := "Version: " + Version
+	if VersionPrerelease != "" {
+		v += "-" + VersionPrerelease
+	}
+	v += " Git Commit: " + GitCommit
+	return v
+}

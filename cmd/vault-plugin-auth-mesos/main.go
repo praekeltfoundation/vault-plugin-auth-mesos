@@ -22,7 +22,7 @@ func main() {
 	}
 
 	if *versionFlag {
-		reportVersion()
+		fmt.Println(version.HumanReadable())
 		return
 	}
 
@@ -34,13 +34,5 @@ func main() {
 		TLSProviderFunc:    tlsProviderFunc,
 	}); err != nil {
 		log.Fatal(err)
-	}
-}
-
-func reportVersion() {
-	fmt.Println("Git Commit:", version.GitCommit)
-	fmt.Println("Version:", version.Version)
-	if version.VersionPrerelease != "" {
-		fmt.Println("Version PreRelease:", version.VersionPrerelease)
 	}
 }

@@ -8,6 +8,10 @@ VERSION := $(shell grep "const Version " version/version.go | sed -E 's/.*"(.+)"
 GIT_COMMIT=$(shell git rev-parse HEAD)
 GIT_DIRTY=$(shell test -n "`git status --porcelain`" && echo "+CHANGES" || true)
 
+NON_CMD_PACKAGES=$(shell go list ./... | fgrep -v '/cmd/')
+
+LDFLAGS="-X ${PROJECT}/version.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X ${PROJECT}/version.VersionPrerelease=DEV"
+
 default: test
 
 help:
@@ -24,7 +28,7 @@ help:
 build:
 	@echo "building ${BIN_NAME} ${VERSION} ${GIT_COMMIT}${GIT_DIRTY}"
 	@echo "GOPATH=${GOPATH}"
-	go build -ldflags "-X ${PROJECT}/version.GitCommit=${GIT_COMMIT}${GIT_DIRTY} -X ${PROJECT}/version.VersionPrerelease=DEV" -o bin/${BIN_NAME} cmd/${BIN_NAME}/main.go
+	go build -ldflags ${LDFLAGS} -o bin/${BIN_NAME} cmd/${BIN_NAME}/main.go
 
 get-deps:
 	dep ensure
@@ -33,7 +37,7 @@ clean:
 	@test ! -e bin/${BIN_NAME} || rm bin/${BIN_NAME}
 
 test:
-	go test -race -coverprofile=coverage.txt -covermode=atomic $(shell go list ./... | fgrep -v '/cmd/')
+	go test -race -coverprofile=coverage.txt -covermode=atomic ${NON_CMD_PACKAGES}
 
 lint:
 	gometalinter --vendor --tests --deadline=120s ./...
