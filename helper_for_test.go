@@ -23,6 +23,7 @@ type TestSuite struct {
 	cleanups []func()
 
 	storage logical.Storage
+	backend *mesosBackend
 }
 
 func Test_TestSuite(t *testing.T) {
@@ -52,15 +53,15 @@ func (ts *TestSuite) WithoutError(result interface{}, err error) interface{} {
 	return result
 }
 
-func (ts *TestSuite) mkBackend() *mesosBackend {
+func (ts *TestSuite) SetupBackend() {
+	ts.Require().Nil(ts.backend, "Backend already set up.")
 	ts.storage = &logical.InmemStorage{}
 	config := &logical.BackendConfig{
 		Logger:      logging.NewVaultLogger(log.Trace),
 		StorageView: ts.storage,
 	}
 
-	b := ts.WithoutError(Factory(context.Background(), config)).(*mesosBackend)
-	return b
+	ts.backend = ts.WithoutError(Factory(context.Background(), config)).(*mesosBackend)
 }
 
 func (ts *TestSuite) mkReq(path string, data jsonobj) *logical.Request {
@@ -71,4 +72,9 @@ func (ts *TestSuite) mkReq(path string, data jsonobj) *logical.Request {
 		Data:       data,
 		Storage:    ts.storage,
 	}
+}
+
+func (ts *TestSuite) HandleRequest(req *logical.Request) (*logical.Response, error) {
+	ts.Require().NotNil(ts.backend, "Backend not set up.")
+	return ts.backend.HandleRequest(context.Background(), req)
 }

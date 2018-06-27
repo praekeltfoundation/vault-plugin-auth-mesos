@@ -1,7 +1,6 @@
 package mesosAuthPlugin
 
 import (
-	"context"
 	"time"
 
 	"github.com/hashicorp/vault/logical"
@@ -10,19 +9,19 @@ import (
 // See helper_for_test.go for common infrastructure and tools.
 
 func (ts *TestSuite) Test_login_no_task_id() {
-	b := ts.mkBackend()
+	ts.SetupBackend()
 	req := ts.mkReq("login", jsonobj{})
 
-	resp, err := b.HandleRequest(context.Background(), req)
+	resp, err := ts.HandleRequest(req)
 	ts.EqualError(err, "permission denied")
 	ts.Nil(resp)
 }
 
 func (ts *TestSuite) Test_login_good_task_id() {
-	b := ts.mkBackend()
+	ts.SetupBackend()
 	req := ts.mkReq("login", jsonobj{"task-id": "task-that-exists"})
 
-	resp, err := b.HandleRequest(context.Background(), req)
+	resp, err := ts.HandleRequest(req)
 	ts.Require().NoError(err)
 	ts.Nil(resp.Warnings)
 	ts.Nil(resp.Secret)
