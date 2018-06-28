@@ -92,15 +92,32 @@ func (ts *TestSuite) HandleRequest(req *logical.Request) (*logical.Response, err
 	return ts.backend.HandleRequest(context.Background(), req)
 }
 
+// HandleRequestSuccess ensures asserts that the response is not an error.
+func (ts *TestSuite) HandleRequestSuccess(req *logical.Request) *logical.Response {
+	resp := ts.WithoutError(ts.HandleRequest(req)).(*logical.Response)
+	ts.NoError(resp.Error())
+	return resp
+}
+
+// Login makes a login request which is required to be successful and returns
+// the resulting auth data.
 func (ts *TestSuite) Login(taskID string) *logical.Auth {
 	req := ts.mkReq("login", jsonobj{"task-id": taskID})
-
 	resp := ts.WithoutError(ts.HandleRequest(req)).(*logical.Response)
 	return resp.Auth
 }
 
-func (ts *TestSuite) ResponseError(resp *logical.Response, errMsg string) {
-	ts.Nil(resp.Auth)
-	ts.Nil(resp.Secret)
-	ts.Equal(resp.Data, jsonobj{"error": errMsg})
+// GetStored retrieves a value from Vault storage.
+func (ts *TestSuite) GetStored(key string) *logical.StorageEntry {
+	return ts.WithoutError(ts.storage.Get(context.Background(), key)).(*logical.StorageEntry)
+}
+
+func (ts *TestSuite) mkStorageEntry(key string, value interface{}) *logical.StorageEntry {
+	return ts.WithoutError(logical.StorageEntryJSON(key, value)).(*logical.StorageEntry)
+}
+
+// StoredEqual asserts that the value stored at a particular key is equal to
+// the given value.
+func (ts *TestSuite) StoredEqual(key string, expected interface{}) {
+	ts.Equal(ts.GetStored(key), ts.mkStorageEntry(key, expected))
 }

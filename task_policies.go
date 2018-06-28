@@ -28,21 +28,40 @@ func pathTaskPolicies(b *mesosBackend) *framework.Path {
 	}
 }
 
+type taskPolicies struct {
+	Policies []string
+}
+
+func tpKey(tip string) string {
+	return "task-policies/" + tip
+}
+
 // pathTaskPoliciesUpdate (the method) is the "task-policies" update request
 // handler.
 func (b *mesosBackend) pathTaskPoliciesUpdate(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 
 	taskIDPrefix := d.Get("task-id-prefix").(string)
-	if len(taskIDPrefix) < 1 {
+	if len(taskIDPrefix) == 0 {
 		return logical.ErrorResponse("missing or invalid task-id-prefix"), nil
 	}
 
 	policies := d.Get("policies").([]string)
-	if len(policies) < 1 {
+	if len(policies) == 0 {
 		return logical.ErrorResponse("missing or invalid policies"), nil
 	}
 
 	b.Logger().Info("TASK POLICIES", "task-id-prefix", taskIDPrefix, "policies", policies)
+
+	storageEntry, err := logical.StorageEntryJSON(tpKey(taskIDPrefix), taskPolicies{policies})
+	if err != nil {
+		// noqa: (Not actually a tag that does anything, sadly.)
+		return nil, err
+	}
+
+	if err := req.Storage.Put(ctx, storageEntry); err != nil {
+		// noqa: (Not actually a tag that does anything, sadly.)
+		return nil, err
+	}
 
 	return &logical.Response{}, nil
 }
