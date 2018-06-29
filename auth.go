@@ -30,10 +30,6 @@ func pathLogin(b *mesosBackend) *framework.Path {
 // pathLogin (the method) is the "login" path request handler.
 func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	taskID := d.Get("task-id").(string)
-	if len(taskID) < 1 {
-		return nil, logical.ErrPermissionDenied
-	}
-
 	if !verifyTaskExists(taskID) {
 		return nil, logical.ErrPermissionDenied
 	}
@@ -42,16 +38,8 @@ func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *f
 
 	b.Logger().Info("LOGIN", "task-id", taskID, "prefix", prefix, "RemoteAddr", req.Connection.RemoteAddr)
 
-	se, err := req.Storage.Get(ctx, tpKey(prefix))
+	policies, err := getTaskPolicies(ctx, req.Storage, prefix)
 	if err != nil {
-		return nil, err
-	}
-	if se == nil {
-		return nil, logical.ErrPermissionDenied
-	}
-
-	var tp taskPolicies
-	if err := se.DecodeJSON(&tp); err != nil {
 		return nil, err
 	}
 
@@ -59,7 +47,7 @@ func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *f
 	// TODO: Make the renewal period configurable?
 	return &logical.Response{
 		Auth: &logical.Auth{
-			Policies: tp.Policies,
+			Policies: policies,
 			Period:   10 * time.Minute,
 			LeaseOptions: logical.LeaseOptions{
 				Renewable: true,
@@ -77,8 +65,29 @@ func (b *mesosBackend) authRenew(ctx context.Context, req *logical.Request, d *f
 }
 
 func verifyTaskExists(taskID string) bool {
+	if taskID == "" {
+		return false
+	}
+
 	// TODO: Verify that the task exists.
 	return true
+}
+
+func getTaskPolicies(ctx context.Context, storage logical.Storage, taskPrefix string) ([]string, error) {
+	se, err := storage.Get(ctx, tpKey(taskPrefix))
+	if err != nil {
+		// noqa: (Not actually a tag that does anything, sadly.)
+		return nil, err
+	}
+	if se == nil {
+		return nil, logical.ErrPermissionDenied
+	}
+
+	var tp taskPolicies
+	if err := se.DecodeJSON(&tp); err != nil {
+		return nil, err
+	}
+	return tp.Policies, nil
 }
 
 func taskIDPrefix(taskID string) string {
