@@ -37,7 +37,10 @@ func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *f
 		return nil, logical.ErrPermissionDenied
 	}
 
-	prefix := taskIDPrefix(taskID)
+	prefix, err := taskIDPrefix(taskID)
+	if err != nil {
+		return nil, logical.ErrPermissionDenied
+	}
 
 	b.Logger().Info("LOGIN", "task-id", taskID, "prefix", prefix, "RemoteAddr", req.Connection.RemoteAddr)
 
@@ -102,12 +105,11 @@ func getTaskPolicies(ctx context.Context, storage logical.Storage, taskPrefix st
 	return tp.Policies, nil
 }
 
-func taskIDPrefix(taskID string) string {
+func taskIDPrefix(taskID string) (string, error) {
 	idx := strings.LastIndex(taskID, ".")
 	if idx < 1 {
-		// We have no task prefix (either no dot or nothing before the last
-		// dot), so return the whole taskID.
-		return taskID
+		// We have no task prefix (no dot or nothing before the last dot).
+		return "", fmt.Errorf("malformed task-id")
 	}
-	return taskID[0:idx]
+	return taskID[0:idx], nil
 }

@@ -26,6 +26,16 @@ func (ts *TestSuite) Test_login_missing_taskID() {
 	ts.Nil(resp)
 }
 
+func (ts *TestSuite) Test_login_taskID_with_no_prefix() {
+	ts.SetupBackend()
+	temporarySetOfExistingTasks["abc-123"] = true
+	req := ts.mkReq("login", jsonobj{"task-id": "abc-123"})
+
+	resp, err := ts.HandleRequest(req)
+	ts.EqualError(err, "permission denied")
+	ts.Nil(resp)
+}
+
 func (ts *TestSuite) Test_login_unregistered_taskID() {
 	ts.SetupBackend()
 	temporarySetOfExistingTasks["unregistered-task.abc-123"] = true
