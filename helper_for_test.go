@@ -121,3 +121,12 @@ func (ts *TestSuite) mkStorageEntry(key string, value interface{}) *logical.Stor
 func (ts *TestSuite) StoredEqual(key string, expected interface{}) {
 	ts.Equal(ts.GetStored(key), ts.mkStorageEntry(key, expected))
 }
+
+// Set task policies through the API.
+func (ts *TestSuite) SetTaskPolicies(taskPrefix string, policies ...string) {
+	ts.HandleRequestSuccess(ts.mkReq("task-policies", tpParams(taskPrefix, policies)))
+}
+
+func tpParams(taskPrefix string, policies interface{}) jsonobj {
+	return jsonobj{"task-id-prefix": taskPrefix, "policies": policies}
+}

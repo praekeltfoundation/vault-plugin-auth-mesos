@@ -27,10 +27,6 @@ func (ts *TestSuite) Test_taskPolicies_invalid_params() {
 	}
 }
 
-func tpParams(tip string, policies interface{}) jsonobj {
-	return jsonobj{"task-id-prefix": tip, "policies": policies}
-}
-
 func (ts *TestSuite) Test_taskPolicies_simple() {
 	ts.SetupBackend()
 	ts.Nil(ts.GetStored(tpKey("my-task")))

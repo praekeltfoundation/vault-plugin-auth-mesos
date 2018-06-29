@@ -3,6 +3,7 @@ package mesosAuthPlugin
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/hashicorp/vault/logical"
@@ -28,19 +29,37 @@ func pathLogin(b *mesosBackend) *framework.Path {
 
 // pathLogin (the method) is the "login" path request handler.
 func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-
 	taskID := d.Get("task-id").(string)
 	if len(taskID) < 1 {
 		return nil, logical.ErrPermissionDenied
 	}
 
-	b.Logger().Info("LOGIN", "task-id", taskID, "RemoteAddr", req.Connection.RemoteAddr)
+	if !verifyTaskExists(taskID) {
+		return nil, logical.ErrPermissionDenied
+	}
+
+	prefix := taskIDPrefix(taskID)
+
+	b.Logger().Info("LOGIN", "task-id", taskID, "prefix", prefix, "RemoteAddr", req.Connection.RemoteAddr)
+
+	se, err := req.Storage.Get(ctx, tpKey(prefix))
+	if err != nil {
+		return nil, err
+	}
+	if se == nil {
+		return nil, logical.ErrPermissionDenied
+	}
+
+	var tp taskPolicies
+	if err := se.DecodeJSON(&tp); err != nil {
+		return nil, err
+	}
 
 	// TODO: Validate the task-id and look up the associated list of policies.
 	// TODO: Make the renewal period configurable?
 	return &logical.Response{
 		Auth: &logical.Auth{
-			Policies: []string{},
+			Policies: tp.Policies,
 			Period:   10 * time.Minute,
 			LeaseOptions: logical.LeaseOptions{
 				Renewable: true,
@@ -55,4 +74,19 @@ func (b *mesosBackend) authRenew(ctx context.Context, req *logical.Request, d *f
 	// For an unconditional renewal, we only need to return the Auth struct
 	// we're given in the request.
 	return &logical.Response{Auth: req.Auth}, nil
+}
+
+func verifyTaskExists(taskID string) bool {
+	// TODO: Verify that the task exists.
+	return true
+}
+
+func taskIDPrefix(taskID string) string {
+	idx := strings.LastIndex(taskID, ".")
+	if idx < 1 {
+		// We have no task prefix (either no dot or nothing before the last
+		// dot), so return the whole taskID.
+		return taskID
+	}
+	return taskID[0:idx]
 }
