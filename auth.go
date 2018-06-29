@@ -30,7 +30,7 @@ func pathLogin(b *mesosBackend) *framework.Path {
 // pathLogin (the method) is the "login" path request handler.
 func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	taskID := d.Get("task-id").(string)
-	if !verifyTaskExists(taskID) {
+	if !b.verifyTaskExists(taskID) {
 		return nil, logical.ErrPermissionDenied
 	}
 
@@ -64,11 +64,12 @@ func (b *mesosBackend) authRenew(ctx context.Context, req *logical.Request, d *f
 	return &logical.Response{Auth: req.Auth}, nil
 }
 
-func verifyTaskExists(taskID string) bool {
+func (b *mesosBackend) verifyTaskExists(taskID string) bool {
 	if taskID == "" {
 		return false
 	}
 
+	b.Logger().Debug("TODO: Check task in mesos.")
 	// TODO: Verify that the task exists.
 	return true
 }
@@ -85,6 +86,7 @@ func getTaskPolicies(ctx context.Context, storage logical.Storage, taskPrefix st
 
 	var tp taskPolicies
 	if err := se.DecodeJSON(&tp); err != nil {
+		// noqa: (Not actually a tag that does anything, sadly.)
 		return nil, err
 	}
 	return tp.Policies, nil
