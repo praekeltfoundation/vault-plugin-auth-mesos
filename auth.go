@@ -10,6 +10,9 @@ import (
 	"github.com/hashicorp/vault/logical/framework"
 )
 
+// TODO: Replace this with calls to mesos.
+var temporarySetOfExistingTasks = map[string]bool{}
+
 // pathLogin (the function) returns the "login" path struct. It is a function
 // rather than a method because we never call it once the backend struct is
 // built and we don't want name collisions with any request handler methods.
@@ -43,7 +46,6 @@ func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *f
 		return nil, err
 	}
 
-	// TODO: Validate the task-id and look up the associated list of policies.
 	// TODO: Make the renewal period configurable?
 	return &logical.Response{
 		Auth: &logical.Auth{
@@ -52,14 +54,22 @@ func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *f
 			LeaseOptions: logical.LeaseOptions{
 				Renewable: true,
 			},
+			// Stash task-id so we can check it again for renewals.
+			InternalData: jsonobj{"task-id": taskID},
 		},
 	}, nil
 }
 
 // authRenew is the renew callback for tokens created by this plugin.
 func (b *mesosBackend) authRenew(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	b.Logger().Info("RENEW", "req", fmt.Sprintf("%#v", req))
-	// For an unconditional renewal, we only need to return the Auth struct
+	b.Logger().Info("RENEW", "auth", fmt.Sprintf("%#v", req.Auth))
+
+	taskID := req.Auth.InternalData["task-id"].(string)
+	if !b.verifyTaskExists(taskID) {
+		return nil, fmt.Errorf("task %s not found during renewal", taskID)
+	}
+
+	// For a standard periodic renewal, we only need to return the Auth struct
 	// we're given in the request.
 	return &logical.Response{Auth: req.Auth}, nil
 }
@@ -71,7 +81,7 @@ func (b *mesosBackend) verifyTaskExists(taskID string) bool {
 
 	b.Logger().Debug("TODO: Check task in mesos.")
 	// TODO: Verify that the task exists.
-	return true
+	return temporarySetOfExistingTasks[taskID]
 }
 
 func getTaskPolicies(ctx context.Context, storage logical.Storage, taskPrefix string) ([]string, error) {

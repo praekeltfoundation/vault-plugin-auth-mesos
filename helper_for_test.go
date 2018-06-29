@@ -12,10 +12,6 @@ import (
 
 // This file contains infrastructure and tools common to multiple tests.
 
-// jsonobj is an alias for type a JSON object gets unmarshalled into, because
-// building nested map[string]interface{}{ ... } literals is awful.
-type jsonobj = map[string]interface{}
-
 // TestSuite is a testify test suite object that we can attach helper methods
 // to.
 type TestSuite struct {
@@ -43,6 +39,9 @@ func (ts *TestSuite) SetupTest() {
 	ts.cleanups = []func(){}
 	ts.storage = nil
 	ts.backend = nil
+
+	// Clear our hacky task set global for each test.
+	temporarySetOfExistingTasks = map[string]bool{}
 }
 
 // TearDownTest calls the registered cleanup functions.
