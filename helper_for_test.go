@@ -84,16 +84,28 @@ func (ts *TestSuite) mkReq(path string, data jsonobj) *logical.Request {
 	}
 }
 
-// HandleRequest is a thin wrapper around the backend's HandleRequest method to
-// avoid some boilerplate in the tests.
-func (ts *TestSuite) HandleRequest(req *logical.Request) (*logical.Response, error) {
+// HandleRequestRaw is a thin wrapper around the backend's HandleRequest method
+// to avoid some boilerplate in the tests.
+func (ts *TestSuite) HandleRequestRaw(req *logical.Request) (*logical.Response, error) {
 	ts.Require().NotNil(ts.backend, "Backend not set up.")
 	return ts.backend.HandleRequest(context.Background(), req)
 }
 
-// HandleRequestSuccess ensures asserts that the response is not an error.
+// HandleRequestError asserts that a request errors.
+func (ts *TestSuite) HandleRequestError(req *logical.Request, errmsg string) {
+	_, err := ts.HandleRequestRaw(req)
+	ts.EqualError(err, errmsg)
+}
+
+// HandleRequest is a thin wrapper around HandleRequestRaw to handle
+// non-response errors.
+func (ts *TestSuite) HandleRequest(req *logical.Request) *logical.Response {
+	return ts.WithoutError(ts.HandleRequestRaw(req)).(*logical.Response)
+}
+
+// HandleRequestSuccess asserts that the response is not an error.
 func (ts *TestSuite) HandleRequestSuccess(req *logical.Request) *logical.Response {
-	resp := ts.WithoutError(ts.HandleRequest(req)).(*logical.Response)
+	resp := ts.HandleRequest(req)
 	ts.NoError(resp.Error())
 	return resp
 }
@@ -102,7 +114,7 @@ func (ts *TestSuite) HandleRequestSuccess(req *logical.Request) *logical.Respons
 // the resulting auth data.
 func (ts *TestSuite) Login(taskID string) *logical.Auth {
 	req := ts.mkReq("login", jsonobj{"task-id": taskID})
-	resp := ts.WithoutError(ts.HandleRequest(req)).(*logical.Response)
+	resp := ts.HandleRequestSuccess(req)
 	return resp.Auth
 }
 

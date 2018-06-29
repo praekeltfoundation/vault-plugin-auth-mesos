@@ -22,7 +22,7 @@ func (ts *TestSuite) Test_taskPolicies_invalid_params() {
 	ts.SetupBackend()
 	for _, ipd := range invalidParamData {
 		req := ts.mkReq("task-policies", ipd.data)
-		resp := ts.WithoutError(ts.HandleRequest(req)).(*logical.Response)
+		resp := ts.HandleRequest(req)
 		ts.EqualError(resp.Error(), "missing or invalid "+ipd.field)
 	}
 }
@@ -33,7 +33,7 @@ func (ts *TestSuite) Test_taskPolicies_simple() {
 
 	req := ts.mkReq("task-policies", tpParams("my-task", "insurance"))
 
-	resp := ts.HandleRequestSuccess(req)
+	resp := ts.HandleRequest(req)
 	ts.Equal(resp, &logical.Response{})
 
 	ts.StoredEqual(tpKey("my-task"), taskPolicies{[]string{"insurance"}})

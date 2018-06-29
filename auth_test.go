@@ -11,39 +11,27 @@ import (
 func (ts *TestSuite) Test_login_no_taskID() {
 	ts.SetupBackend()
 	req := ts.mkReq("login", jsonobj{})
-
-	resp, err := ts.HandleRequest(req)
-	ts.EqualError(err, "permission denied")
-	ts.Nil(resp)
+	ts.HandleRequestError(req, "permission denied")
 }
 
 func (ts *TestSuite) Test_login_missing_taskID() {
 	ts.SetupBackend()
 	req := ts.mkReq("login", jsonobj{"task-id": "missing-task.abc-123"})
-
-	resp, err := ts.HandleRequest(req)
-	ts.EqualError(err, "permission denied")
-	ts.Nil(resp)
+	ts.HandleRequestError(req, "permission denied")
 }
 
 func (ts *TestSuite) Test_login_taskID_with_no_prefix() {
 	ts.SetupBackend()
 	temporarySetOfExistingTasks["abc-123"] = true
 	req := ts.mkReq("login", jsonobj{"task-id": "abc-123"})
-
-	resp, err := ts.HandleRequest(req)
-	ts.EqualError(err, "permission denied")
-	ts.Nil(resp)
+	ts.HandleRequestError(req, "permission denied")
 }
 
 func (ts *TestSuite) Test_login_unregistered_taskID() {
 	ts.SetupBackend()
 	temporarySetOfExistingTasks["unregistered-task.abc-123"] = true
 	req := ts.mkReq("login", jsonobj{"task-id": "unregistered-task.abc-123"})
-
-	resp, err := ts.HandleRequest(req)
-	ts.EqualError(err, "permission denied")
-	ts.Nil(resp)
+	ts.HandleRequestError(req, "permission denied")
 }
 
 func (ts *TestSuite) Test_login_good_taskID() {
@@ -53,8 +41,7 @@ func (ts *TestSuite) Test_login_good_taskID() {
 
 	req := ts.mkReq("login", jsonobj{"task-id": "task-that-exists.abc-123"})
 
-	resp, err := ts.HandleRequest(req)
-	ts.Require().NoError(err)
+	resp := ts.HandleRequest(req)
 	ts.Nil(resp.Warnings)
 	ts.Nil(resp.Secret)
 	ts.Equal(resp.Auth, &logical.Auth{
@@ -75,9 +62,7 @@ func (ts *TestSuite) Test_renewal_not_logged_in() {
 		Unauthenticated: false,
 	}
 
-	resp, err := ts.HandleRequest(req)
-	ts.EqualError(err, "request has no secret")
-	ts.Nil(resp)
+	ts.HandleRequestError(req, "request has no secret")
 }
 
 func (ts *TestSuite) Test_renewal_logged_in() {
@@ -93,8 +78,7 @@ func (ts *TestSuite) Test_renewal_logged_in() {
 		Unauthenticated: false,
 	}
 
-	resp, err := ts.HandleRequest(req)
-	ts.NoError(err)
+	resp := ts.HandleRequest(req)
 	ts.Equal(auth, resp.Auth)
 }
 
@@ -112,7 +96,5 @@ func (ts *TestSuite) Test_renewal_task_ended() {
 		Unauthenticated: false,
 	}
 
-	resp, err := ts.HandleRequest(req)
-	ts.EqualError(err, "task short-task.abc-123 not found during renewal")
-	ts.Nil(resp)
+	ts.HandleRequestError(req, "task short-task.abc-123 not found during renewal")
 }
