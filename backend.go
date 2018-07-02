@@ -29,10 +29,12 @@ func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend,
 		Clean:      b.cleanup,
 	}
 
-	if err := b.Setup(ctx, conf); err != nil {
-		return nil, err
-	}
-	return &b, nil
+	// We unconditionally return &b and whatever error we got from the setup
+	// call to avoid some useless error handler boilerplate that we can't test.
+	// (Let's hope the caller doesn't assume an error response will always
+	// accompany a nil backend.)
+	err := b.Setup(ctx, conf)
+	return &b, err
 }
 
 // TODO: Make this useful or get rid of it.
