@@ -18,6 +18,8 @@ var invalidParamData = []struct {
 	{"policies", jsonobj{"task-id-prefix": "my-task", "policies": []string{}}},
 }
 
+// Any missing or empty parameter causes a task-policies update request to
+// fail.
 func (ts *TestSuite) Test_taskPolicies_invalid_params() {
 	ts.SetupBackend()
 	for _, ipd := range invalidParamData {
@@ -27,6 +29,7 @@ func (ts *TestSuite) Test_taskPolicies_invalid_params() {
 	}
 }
 
+// A task-policies update containing a single policy succeeds.
 func (ts *TestSuite) Test_taskPolicies_simple() {
 	ts.SetupBackend()
 	ts.Nil(ts.GetStored(tpKey("my-task")))
