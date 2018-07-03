@@ -27,10 +27,12 @@ func pathTaskPolicies(b *mesosBackend) *framework.Path {
 	}
 }
 
+// taskPolicies is used to store policies for a task.
 type taskPolicies struct {
 	Policies []string
 }
 
+// tpKey builds a task policy storage key.
 func tpKey(tip string) string {
 	return "task-policies/" + tip
 }
@@ -52,12 +54,4 @@ func (b *mesosBackend) pathTaskPoliciesUpdate(ctx context.Context, req *logical.
 
 	err := store(ctx, req.Storage, tpKey(taskIDPrefix), taskPolicies{policies})
 	return &logical.Response{}, err
-}
-
-func store(ctx context.Context, storage logical.Storage, key string, value interface{}) error {
-	storageEntry, err := logical.StorageEntryJSON(key, value)
-	if err == nil {
-		err = storage.Put(ctx, storageEntry)
-	}
-	return err
 }

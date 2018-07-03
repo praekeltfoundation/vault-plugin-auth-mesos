@@ -7,6 +7,7 @@ import (
 	"github.com/hashicorp/vault/logical/framework"
 )
 
+// mesosBackend is our plugin backend object.
 type mesosBackend struct {
 	*framework.Backend
 }

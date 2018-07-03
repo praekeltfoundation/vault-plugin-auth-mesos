@@ -22,6 +22,8 @@ type TestSuite struct {
 	backend *mesosBackend
 }
 
+// Test_TestSuite is a standard Go test function that runs our test suite's
+// tests.
 func Test_TestSuite(t *testing.T) {
 	suite.Run(t, new(TestSuite))
 }
@@ -74,6 +76,7 @@ func (ts *TestSuite) SetupBackend() {
 	ts.backend = ts.WithoutError(Factory(context.Background(), config)).(*mesosBackend)
 }
 
+// mkReq builds a basic request object.
 func (ts *TestSuite) mkReq(path string, data jsonobj) *logical.Request {
 	return &logical.Request{
 		Operation:  logical.UpdateOperation,
@@ -123,6 +126,7 @@ func (ts *TestSuite) GetStored(key string) *logical.StorageEntry {
 	return ts.WithoutError(ts.storage.Get(context.Background(), key)).(*logical.StorageEntry)
 }
 
+// mkStorageEntry builds a StorageEntry object with errors handled.
 func (ts *TestSuite) mkStorageEntry(key string, value interface{}) *logical.StorageEntry {
 	return ts.WithoutError(logical.StorageEntryJSON(key, value)).(*logical.StorageEntry)
 }
@@ -133,11 +137,12 @@ func (ts *TestSuite) StoredEqual(key string, expected interface{}) {
 	ts.Equal(ts.GetStored(key), ts.mkStorageEntry(key, expected))
 }
 
-// Set task policies through the API.
+// SetTaskPolicies sets task policies through the API.
 func (ts *TestSuite) SetTaskPolicies(taskPrefix string, policies ...string) {
 	ts.HandleRequestSuccess(ts.mkReq("task-policies", tpParams(taskPrefix, policies)))
 }
 
+// tpParams removes boilerplate from request creation.
 func tpParams(taskPrefix string, policies interface{}) jsonobj {
 	return jsonobj{"task-id-prefix": taskPrefix, "policies": policies}
 }

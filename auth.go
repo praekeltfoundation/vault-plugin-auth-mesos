@@ -77,6 +77,8 @@ func (b *mesosBackend) authRenew(ctx context.Context, req *logical.Request, d *f
 	return &logical.Response{Auth: req.Auth}, nil
 }
 
+// verifyTaskExists checks that a taskID is valid and identifies an existing
+// task.
 func (b *mesosBackend) verifyTaskExists(taskID string) bool {
 	if taskID == "" {
 		return false
@@ -87,6 +89,7 @@ func (b *mesosBackend) verifyTaskExists(taskID string) bool {
 	return temporarySetOfExistingTasks[taskID]
 }
 
+// getTaskPolicies fetches the policies for a taskID prefix.
 func getTaskPolicies(ctx context.Context, storage logical.Storage, taskPrefix string) ([]string, error) {
 	se, err := storage.Get(ctx, tpKey(taskPrefix))
 	if err != nil {
@@ -102,6 +105,7 @@ func getTaskPolicies(ctx context.Context, storage logical.Storage, taskPrefix st
 	return tp.Policies, err
 }
 
+// taskIDPrefix extracts the prefix from a taskID.
 func taskIDPrefix(taskID string) (string, error) {
 	idx := strings.LastIndex(taskID, ".")
 	if idx < 1 {
