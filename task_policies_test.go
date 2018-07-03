@@ -41,3 +41,17 @@ func (ts *TestSuite) Test_taskPolicies_simple() {
 
 	ts.StoredEqual(tpKey("my-task"), taskPolicies{[]string{"insurance"}})
 }
+
+// A task-policies update overwrites any existing policies for that task.
+func (ts *TestSuite) Test_taskPolicies_replace() {
+	ts.SetupBackend()
+	ts.Nil(ts.GetStored(tpKey("my-task")))
+
+	req1 := ts.mkReq("task-policies", tpParams("my-task", "insurance"))
+	ts.Equal(ts.HandleRequest(req1), &logical.Response{})
+	ts.StoredEqual(tpKey("my-task"), taskPolicies{[]string{"insurance"}})
+
+	req2 := ts.mkReq("task-policies", tpParams("my-task", "foreign"))
+	ts.Equal(ts.HandleRequest(req2), &logical.Response{})
+	ts.StoredEqual(tpKey("my-task"), taskPolicies{[]string{"foreign"}})
+}
