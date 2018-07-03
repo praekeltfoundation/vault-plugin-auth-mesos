@@ -98,11 +98,8 @@ func getTaskPolicies(ctx context.Context, storage logical.Storage, taskPrefix st
 	}
 
 	var tp taskPolicies
-	if err := se.DecodeJSON(&tp); err != nil {
-		// noqa: (Not actually a tag that does anything, sadly.)
-		return nil, err
-	}
-	return tp.Policies, nil
+	err = se.DecodeJSON(&tp)
+	return tp.Policies, err
 }
 
 func taskIDPrefix(taskID string) (string, error) {

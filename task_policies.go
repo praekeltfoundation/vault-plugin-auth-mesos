@@ -50,16 +50,14 @@ func (b *mesosBackend) pathTaskPoliciesUpdate(ctx context.Context, req *logical.
 
 	b.Logger().Info("TASK POLICIES", "task-id-prefix", taskIDPrefix, "policies", policies)
 
-	storageEntry, err := logical.StorageEntryJSON(tpKey(taskIDPrefix), taskPolicies{policies})
-	if err != nil {
-		// noqa: (Not actually a tag that does anything, sadly.)
-		return nil, err
-	}
+	err := store(ctx, req.Storage, tpKey(taskIDPrefix), taskPolicies{policies})
+	return &logical.Response{}, err
+}
 
-	if err := req.Storage.Put(ctx, storageEntry); err != nil {
-		// noqa: (Not actually a tag that does anything, sadly.)
-		return nil, err
+func store(ctx context.Context, storage logical.Storage, key string, value interface{}) error {
+	storageEntry, err := logical.StorageEntryJSON(key, value)
+	if err == nil {
+		err = storage.Put(ctx, storageEntry)
 	}
-
-	return &logical.Response{}, nil
+	return err
 }
