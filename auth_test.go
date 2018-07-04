@@ -17,6 +17,10 @@ type AuthTests struct{ TestSuite }
 // Test_Auth is a standard Go test function that runs our test suite's tests.
 func Test_Auth(t *testing.T) { suite.Run(t, new(AuthTests)) }
 
+//////////////////////
+// Tests for login. //
+//////////////////////
+
 // Can't log in without a taskID.
 func (ts *AuthTests) Test_login_no_taskID() {
 	ts.SetupBackend()
@@ -67,6 +71,24 @@ func (ts *AuthTests) Test_login_good_taskID() {
 		InternalData: jsonobj{"task-id": "task-that-exists.abc-123"},
 	})
 }
+
+// Can log in with a taskID that exists and has policies configured for its
+// prefix.
+func (ts *AuthTests) Test_login_only_once() {
+	ts.SetupBackend()
+	temporarySetOfExistingTasks["my-task.abc-123"] = true
+	ts.SetTaskPolicies("my-task", "insurance")
+
+	auth := ts.Login("my-task.abc-123")
+	ts.Equal(auth.Policies, []string{"insurance"})
+
+	req := ts.mkReq("login", jsonobj{"task-id": "my-task.abc-123"})
+	ts.HandleRequestError(req, "permission denied")
+}
+
+////////////////////////
+// Tests for renewal. //
+////////////////////////
 
 // Can't renew if you're not logged in.
 func (ts *AuthTests) Test_renewal_not_logged_in() {
