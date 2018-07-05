@@ -1,10 +1,21 @@
 package mesosauth
 
 import (
+	"testing"
+
 	"github.com/hashicorp/vault/logical"
+	"github.com/stretchr/testify/suite"
 )
 
 // See helper_for_test.go for common infrastructure and tools.
+
+// TaskPoliciesTests is a testify test suite object that we can attach helper
+// methods to.
+type TaskPoliciesTests struct{ TestSuite }
+
+// Test_TaskPolicies is a standard Go test function that runs our test suite's
+// tests.
+func Test_TaskPolicies(t *testing.T) { suite.Run(t, new(TaskPoliciesTests)) }
 
 var invalidParamData = []struct {
 	field string
@@ -20,7 +31,7 @@ var invalidParamData = []struct {
 
 // Any missing or empty parameter causes a task-policies update request to
 // fail.
-func (ts *TestSuite) Test_taskPolicies_invalid_params() {
+func (ts *TaskPoliciesTests) Test_taskPolicies_invalid_params() {
 	ts.SetupBackend()
 	for _, ipd := range invalidParamData {
 		req := ts.mkReq("task-policies", ipd.data)
@@ -30,7 +41,7 @@ func (ts *TestSuite) Test_taskPolicies_invalid_params() {
 }
 
 // A task-policies update containing a single policy succeeds.
-func (ts *TestSuite) Test_taskPolicies_simple() {
+func (ts *TaskPoliciesTests) Test_taskPolicies_simple() {
 	ts.SetupBackend()
 	ts.Nil(ts.GetStored(tpKey("my-task")))
 
@@ -43,7 +54,7 @@ func (ts *TestSuite) Test_taskPolicies_simple() {
 }
 
 // A task-policies update overwrites any existing policies for that task.
-func (ts *TestSuite) Test_taskPolicies_replace() {
+func (ts *TaskPoliciesTests) Test_taskPolicies_replace() {
 	ts.SetupBackend()
 	ts.Nil(ts.GetStored(tpKey("my-task")))
 
