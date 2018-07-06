@@ -110,7 +110,7 @@ func taskIDPrefix(taskID string) (string, error) {
 	idx := strings.LastIndex(taskID, ".")
 	if idx < 1 {
 		// We have no task prefix (no dot or nothing before the last dot).
-		return "", fmt.Errorf("malformed task-id")
+		return "", fmt.Errorf("malformed task-id: \"%s\"", taskID)
 	}
 	return taskID[0:idx], nil
 }
