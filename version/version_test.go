@@ -6,6 +6,8 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+// A human-readable version string does not contain a version suffix if there
+// is no prerelease string.
 func Test_HumanReadable_no_prerelease(t *testing.T) {
 	// Override global variables (usually set at compile time).
 	GitCommit = "abc123+CHANGES"
@@ -17,6 +19,8 @@ func Test_HumanReadable_no_prerelease(t *testing.T) {
 	assert.NotContains(t, hr, "Version: "+Version+"-")
 }
 
+// A human-readable version string contains a version suffix if there is a
+// prerelease string.
 func Test_HumanReadable_with_prerelease(t *testing.T) {
 	// Override global variables (usually set at compile time).
 	GitCommit = "abc123"
