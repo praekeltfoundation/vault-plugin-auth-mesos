@@ -16,6 +16,10 @@ type TestSuite struct {
 // AddCleanup schedules the given cleanup function to be run after the test.
 // Think of it like `defer`, except it applies to the whole test rather than
 // the specific function it appears in.
+//
+// Cleanup functions are run in the reverse of the order in which they were
+// added. This makes it safe for later cleanup functions to use entities that
+// are cleaned up by earlier cleanup functions.
 func (ts *TestSuite) AddCleanup(f func()) {
 	ts.cleanups = append([]func(){f}, ts.cleanups...)
 }
