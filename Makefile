@@ -21,7 +21,7 @@ help:
 	@echo '    make build           Compile the project.'
 	@echo '    make get-deps        Run dep ensure, mostly used for ci.'
 	@echo '    make test            Run tests on a compiled project.'
-	@echo '    make lint            Run gometalinter.'
+	@echo '    make lint            Run golangci-lint.'
 	@echo '    make clean           Clean the directory tree.'
 	@echo
 
@@ -40,4 +40,4 @@ test:
 	go test -race -coverprofile=coverage.txt -covermode=atomic ${NON_CMD_PACKAGES}
 
 lint:
-	gometalinter --vendor --tests --deadline=120s ./...
+	golangci-lint run --enable-all --disable=lll --tests ./...

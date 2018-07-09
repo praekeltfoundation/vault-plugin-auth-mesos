@@ -1,4 +1,4 @@
-package mesosAuthPlugin
+package mesosauth
 
 import (
 	"github.com/hashicorp/vault/logical"
@@ -39,7 +39,7 @@ func (ts *TestSuite) Test_taskPolicies_simple() {
 	resp := ts.HandleRequest(req)
 	ts.Equal(resp, &logical.Response{})
 
-	ts.StoredEqual(tpKey("my-task"), taskPolicies{[]string{"insurance"}})
+	ts.StoredEqual(tpKey("my-task"), mkTaskPolicies([]string{"insurance"}))
 }
 
 // A task-policies update overwrites any existing policies for that task.
@@ -49,9 +49,9 @@ func (ts *TestSuite) Test_taskPolicies_replace() {
 
 	req1 := ts.mkReq("task-policies", tpParams("my-task", "insurance"))
 	ts.Equal(ts.HandleRequest(req1), &logical.Response{})
-	ts.StoredEqual(tpKey("my-task"), taskPolicies{[]string{"insurance"}})
+	ts.StoredEqual(tpKey("my-task"), mkTaskPolicies([]string{"insurance"}))
 
 	req2 := ts.mkReq("task-policies", tpParams("my-task", "foreign"))
 	ts.Equal(ts.HandleRequest(req2), &logical.Response{})
-	ts.StoredEqual(tpKey("my-task"), taskPolicies{[]string{"foreign"}})
+	ts.StoredEqual(tpKey("my-task"), mkTaskPolicies([]string{"foreign"}))
 }

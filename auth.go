@@ -1,4 +1,4 @@
-package mesosAuthPlugin
+package mesosauth
 
 import (
 	"context"
@@ -20,9 +20,7 @@ func pathLogin(b *mesosBackend) *framework.Path {
 	return &framework.Path{
 		Pattern: "login",
 		Fields: map[string]*framework.FieldSchema{
-			"task-id": &framework.FieldSchema{
-				Type: framework.TypeString,
-			},
+			"task-id": {Type: framework.TypeString},
 		},
 		Callbacks: map[logical.Operation]framework.OperationFunc{
 			logical.UpdateOperation: b.pathLogin,
