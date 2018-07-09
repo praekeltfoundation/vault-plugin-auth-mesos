@@ -19,7 +19,8 @@ install:
 
 script:
   - make test
-  - make lint
+  # Don't lint on go master -- the build is slow enough already.
+  - go version | grep 'devel' || make lint
 
 after_success:
   - bash <(curl -s https://codecov.io/bash)
