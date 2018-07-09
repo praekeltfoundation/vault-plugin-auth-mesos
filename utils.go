@@ -1,4 +1,4 @@
-package mesosAuthPlugin
+package mesosauth
 
 // This file contains random bits of code that don't really belong to any
 // particular thing.

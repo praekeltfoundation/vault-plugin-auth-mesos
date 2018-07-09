@@ -1,4 +1,4 @@
-package mesosAuthPlugin
+package mesosauth
 
 import (
 	"context"

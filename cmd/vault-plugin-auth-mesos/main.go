@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/vault/helper/pluginutil"
 	"github.com/hashicorp/vault/logical/plugin"
 
-	backend "github.com/praekeltfoundation/vault-plugin-auth-mesos"
+	"github.com/praekeltfoundation/vault-plugin-auth-mesos"
 	"github.com/praekeltfoundation/vault-plugin-auth-mesos/version"
 )
 
@@ -30,7 +30,7 @@ func main() {
 	tlsProviderFunc := pluginutil.VaultPluginTLSProvider(tlsConfig)
 
 	if err := plugin.Serve(&plugin.ServeOpts{
-		BackendFactoryFunc: backend.Factory,
+		BackendFactoryFunc: mesosauth.Factory,
 		TLSProviderFunc:    tlsProviderFunc,
 	}); err != nil {
 		log.Fatal(err)

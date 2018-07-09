@@ -1,4 +1,4 @@
-package mesosAuthPlugin
+package mesosauth
 
 import (
 	"context"
@@ -14,12 +14,8 @@ func pathTaskPolicies(b *mesosBackend) *framework.Path {
 	return &framework.Path{
 		Pattern: "task-policies",
 		Fields: map[string]*framework.FieldSchema{
-			"task-id-prefix": &framework.FieldSchema{
-				Type: framework.TypeString,
-			},
-			"policies": &framework.FieldSchema{
-				Type: framework.TypeCommaStringSlice,
-			},
+			"task-id-prefix": {Type: framework.TypeString},
+			"policies":       {Type: framework.TypeCommaStringSlice},
 		},
 		Callbacks: map[logical.Operation]framework.OperationFunc{
 			logical.UpdateOperation: b.pathTaskPoliciesUpdate,
@@ -30,6 +26,11 @@ func pathTaskPolicies(b *mesosBackend) *framework.Path {
 // taskPolicies is used to store policies for a task.
 type taskPolicies struct {
 	Policies []string
+}
+
+// taskPolicies gives us a less verbose way to build a taskPolicies value.
+func mkTaskPolicies(policies []string) taskPolicies {
+	return taskPolicies{Policies: policies}
 }
 
 // tpKey builds a task policy storage key.
@@ -52,6 +53,6 @@ func (b *mesosBackend) pathTaskPoliciesUpdate(ctx context.Context, req *logical.
 
 	b.Logger().Info("TASK POLICIES", "task-id-prefix", taskIDPrefix, "policies", policies)
 
-	err := store(ctx, req.Storage, tpKey(taskIDPrefix), taskPolicies{policies})
+	err := store(ctx, req.Storage, tpKey(taskIDPrefix), mkTaskPolicies(policies))
 	return &logical.Response{}, err
 }
