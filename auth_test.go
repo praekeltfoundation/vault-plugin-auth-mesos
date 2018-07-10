@@ -72,8 +72,7 @@ func (ts *AuthTests) Test_login_good_taskID() {
 	})
 }
 
-// Can log in with a taskID that exists and has policies configured for its
-// prefix.
+// Can't log in more than once with the same taskID.
 func (ts *AuthTests) Test_login_only_once() {
 	ts.SetupBackend()
 	temporarySetOfExistingTasks["my-task.abc-123"] = true
