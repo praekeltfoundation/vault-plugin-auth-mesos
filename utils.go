@@ -16,6 +16,11 @@ type jsonobj = map[string]interface{}
 // requestHelper stores a bunch of request information and provides methods
 // that use it to reduce parameter passing boilerplate. Some methods are
 // defined in the files that use them.
+//
+// This is a violation of The Rule About Contexts, but requestHelper is used
+// exclusively for requests-scoped storage operations that are intended to
+// share the same context and would be buried in noise if the context and
+// storage had to be passed to each function individually.
 type requestHelper struct {
 	ctx     context.Context
 	storage logical.Storage
