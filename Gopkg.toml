@@ -29,6 +29,10 @@
   name = "github.com/hashicorp/vault"
   version = "0.10.3"
 
+[[constraint]]
+  name = "github.com/mesos/mesos-go"
+  version = "0.0.6"
+
 [prune]
   go-tests = true
   unused-packages = true
