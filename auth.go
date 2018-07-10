@@ -40,7 +40,7 @@ func tiKey(taskPrefix string) string {
 
 // pathLogin (the method) is the "login" path request handler.
 func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	rh := requestHelper{ctx, req.Storage}
+	rh := requestHelper{ctx: ctx, storage: req.Storage}
 
 	taskID := d.Get("task-id").(string)
 	if !b.verifyTaskExists(taskID) {
@@ -118,7 +118,7 @@ func (rh *requestHelper) verifyTaskNotLoggedIn(taskID string, prefix string) err
 	}
 
 	instances[taskID] = true
-	return rh.store(tiKey(prefix), taskInstances{instances})
+	return rh.store(tiKey(prefix), taskInstances{TaskIDs: instances})
 }
 
 // getTaskPolicies fetches the policies for a taskID prefix.

@@ -40,7 +40,7 @@ func tpKey(taskPrefix string) string {
 
 // pathTaskPoliciesUpdate is the "task-policies" update request handler.
 func (b *mesosBackend) pathTaskPoliciesUpdate(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
-	rh := requestHelper{ctx, req.Storage}
+	rh := requestHelper{ctx: ctx, storage: req.Storage}
 
 	taskIDPrefix := d.Get("task-id-prefix").(string)
 	if len(taskIDPrefix) == 0 {
