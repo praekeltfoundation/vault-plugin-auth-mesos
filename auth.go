@@ -28,8 +28,20 @@ func pathLogin(b *mesosBackend) *framework.Path {
 	}
 }
 
+// taskInstances is used to track taskIDS that have logged in.
+type taskInstances struct {
+	TaskIDs map[string]bool
+}
+
+// tiKey builds a task instances storage key.
+func tiKey(taskPrefix string) string {
+	return "task-instances/" + taskPrefix
+}
+
 // pathLogin (the method) is the "login" path request handler.
 func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	rh := requestHelper{ctx: ctx, storage: req.Storage}
+
 	taskID := d.Get("task-id").(string)
 	if !b.verifyTaskExists(taskID) {
 		return nil, logical.ErrPermissionDenied
@@ -42,8 +54,13 @@ func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *f
 
 	b.Logger().Info("LOGIN", "task-id", taskID, "prefix", prefix, "RemoteAddr", req.Connection.RemoteAddr)
 
-	policies, err := getTaskPolicies(ctx, req.Storage, prefix)
+	policies, err := rh.getTaskPolicies(prefix)
 	if err != nil {
+		return nil, err
+	}
+
+	// TODO: Clean out stale entries.
+	if err := rh.verifyTaskNotLoggedIn(taskID, prefix); err != nil {
 		return nil, err
 	}
 
@@ -87,27 +104,55 @@ func (b *mesosBackend) verifyTaskExists(taskID string) bool {
 	return temporarySetOfExistingTasks[taskID]
 }
 
-// getTaskPolicies fetches the policies for a taskID prefix.
-func getTaskPolicies(ctx context.Context, storage logical.Storage, taskPrefix string) ([]string, error) {
-	se, err := storage.Get(ctx, tpKey(taskPrefix))
+// verifyTaskNotLoggedIn checks that a taskID is not already logged in and
+// marks it as logged in for next time.
+func (rh *requestHelper) verifyTaskNotLoggedIn(taskID string, prefix string) error {
+	instances, err := rh.getTaskInstances(prefix)
 	if err != nil {
 		// noqa: (Not actually a tag that does anything, sadly.)
-		return nil, err
+		return err
 	}
-	if se == nil {
-		return nil, logical.ErrPermissionDenied
+	if instances[taskID] {
+		// This task has already logged in.
+		return logical.ErrPermissionDenied
 	}
 
+	instances[taskID] = true
+	return rh.store(tiKey(prefix), taskInstances{TaskIDs: instances})
+}
+
+// getTaskPolicies fetches the policies for a taskID prefix.
+func (rh *requestHelper) getTaskPolicies(taskPrefix string) ([]string, error) {
 	var tp taskPolicies
-	err = se.DecodeJSON(&tp)
+	decode := func(se *logical.StorageEntry) error {
+		if se == nil {
+			return logical.ErrPermissionDenied
+		}
+		return se.DecodeJSON(&tp)
+	}
+	err := rh.fetch(tpKey(taskPrefix), decode)
 	return tp.Policies, err
+}
+
+// getTaskInstances fetches the policies for a taskID prefix.
+func (rh *requestHelper) getTaskInstances(taskPrefix string) (map[string]bool, error) {
+	var ti taskInstances
+	decode := func(se *logical.StorageEntry) error {
+		if se == nil {
+			ti.TaskIDs = map[string]bool{}
+			return nil
+		}
+		return se.DecodeJSON(&ti)
+	}
+	err := rh.fetch(tiKey(taskPrefix), decode)
+	return ti.TaskIDs, err
 }
 
 // taskIDPrefix extracts the prefix from a taskID.
 func taskIDPrefix(taskID string) (string, error) {
 	idx := strings.LastIndex(taskID, ".")
 	if idx < 1 {
-		// We have no task prefix (no dot or nothing before the last dot).
+		// We have no task prefix (-1) or an empty task prefix (0).
 		return "", fmt.Errorf("malformed task-id: \"%s\"", taskID)
 	}
 	return taskID[0:idx], nil

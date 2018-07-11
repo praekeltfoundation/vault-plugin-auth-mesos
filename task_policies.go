@@ -34,12 +34,13 @@ func mkTaskPolicies(policies []string) taskPolicies {
 }
 
 // tpKey builds a task policy storage key.
-func tpKey(tip string) string {
-	return "task-policies/" + tip
+func tpKey(taskPrefix string) string {
+	return "task-policies/" + taskPrefix
 }
 
 // pathTaskPoliciesUpdate is the "task-policies" update request handler.
 func (b *mesosBackend) pathTaskPoliciesUpdate(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	rh := requestHelper{ctx: ctx, storage: req.Storage}
 
 	taskIDPrefix := d.Get("task-id-prefix").(string)
 	if len(taskIDPrefix) == 0 {
@@ -53,6 +54,6 @@ func (b *mesosBackend) pathTaskPoliciesUpdate(ctx context.Context, req *logical.
 
 	b.Logger().Info("TASK POLICIES", "task-id-prefix", taskIDPrefix, "policies", policies)
 
-	err := store(ctx, req.Storage, tpKey(taskIDPrefix), mkTaskPolicies(policies))
+	err := rh.store(tpKey(taskIDPrefix), mkTaskPolicies(policies))
 	return &logical.Response{}, err
 }
