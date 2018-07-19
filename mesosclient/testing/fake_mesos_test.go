@@ -2,6 +2,7 @@ package testing
 
 import (
 	"bytes"
+	"errors"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -230,4 +231,11 @@ func (ts *FakeMesosTests) postAPI(url string, callType master.Call_Type) *http.R
 	call := &master.Call{Type: callType}
 	body := bytes.NewReader(ts.WithoutError(call.Marshal()).([]byte))
 	return ts.getResp(http.Post(url, "application/x-protobuf", body))
+}
+
+// We can get the tasks if tasks exist.
+func (ts *FakeMesosTests) Test_err2panic() {
+	ts.NotPanics(func() { err2panic(nil) })
+	err := errors.New("oops")
+	ts.PanicsWithValue(err, func() { err2panic(err) })
 }

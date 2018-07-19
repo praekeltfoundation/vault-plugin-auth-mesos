@@ -122,9 +122,7 @@ func (fm *FakeMesos) respondGetTasks(w http.ResponseWriter) {
 		GetTasks: fm.getTasks(),
 	}
 	data, err := resp.Marshal()
-	if err != nil {
-		panic(err)
-	}
+	err2panic(err)
 	w.Header().Set("Content-Type", "application/x-protobuf")
 	_, _ = w.Write(data)
 }
@@ -137,5 +135,13 @@ func (fm *FakeMesos) AddTask(tasks ...mesos.Task) {
 			panic(fmt.Sprintf("Duplicate task: %s", task.TaskID.Value))
 		}
 		fm.tasks[task.TaskID.Value] = task
+	}
+}
+
+// err2panic lets us turn "impossible" errors into panics without leaving
+// untested error handlers in our code.
+func err2panic(err error) {
+	if err != nil {
+		panic(err)
 	}
 }
