@@ -123,8 +123,7 @@ func (fm *FakeMesos) respondGetTasks(w http.ResponseWriter) {
 	}
 	data, err := resp.Marshal()
 	if err != nil {
-		http.Error(w, "internal error: "+err.Error(), 500)
-		return
+		panic(err)
 	}
 	w.Header().Set("Content-Type", "application/x-protobuf")
 	_, _ = w.Write(data)
