@@ -159,7 +159,6 @@ func (ts *FakeMesosTests) Test_API_bad_content_type() {
 	ts.AddCleanup(fm.Close)
 
 	resp := ts.getResp(http.Post(fm.GetAPIURL(), "image/png", strings.NewReader("not a png")))
-	// resp := ts.postAPI("http://10.0.91.11:5050/api/v1", "image/png", strings.NewReader("not a png"))
 	ts.Equal(resp.StatusCode, 415)
 }
 
