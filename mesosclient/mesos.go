@@ -34,7 +34,6 @@ func (c *Client) GetTasks(ctx context.Context) (*master.Response_GetTasks, error
 	}
 	var respData master.Response
 	if err := resp.Decode(&respData); err != nil {
-		// noqa: (Not actually a tag that does anything, sadly.)
 		return nil, err
 	}
 
