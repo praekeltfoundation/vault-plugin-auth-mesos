@@ -2,6 +2,8 @@ package mesosclient
 
 import (
 	"context"
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
 	mesos "github.com/mesos/mesos-go/api/v1/lib"
@@ -31,13 +33,29 @@ func mkTask(name, id string, state mesos.TaskState) mesos.Task {
 
 // We get an error if the client isn't talking to a Mesos API.
 func (ts *MesosClientTests) Test_bad_server() {
-	fm := mesostest.NewFakeMesos()
-	ts.AddCleanup(fm.Close)
-	client := NewClient(fm.GetBaseURL() + "/bad")
+	srv := httptest.NewServer(http.HandlerFunc(http.NotFound))
+	ts.AddCleanup(srv.Close)
+	client := NewClient(srv.URL)
 
 	_, err := client.GetTasks(context.Background())
 	ts.Error(err)
 	ts.Contains(err.Error(), "404 page not found")
+}
+
+// We get an error if the client gets a malformed response.
+func (ts *MesosClientTests) Test_bad_response() {
+	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Claim to return protobuf data, but actually return garbage instead.
+		w.Header().Set("Content-Type", "application/x-protobuf")
+		_, _ = w.Write([]byte("this is not a protobuf"))
+	})
+	srv := httptest.NewServer(handler)
+	ts.AddCleanup(srv.Close)
+	client := NewClient(srv.URL)
+
+	_, err := client.GetTasks(context.Background())
+	ts.Error(err)
+	ts.Contains(err.Error(), "proto: Response:")
 }
 
 // We can get the tasks even if there are none.
