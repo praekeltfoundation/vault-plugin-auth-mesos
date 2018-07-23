@@ -43,13 +43,23 @@ func (ts *TestSuite) SetupBackend() {
 	ts.backend = ts.WithoutError(Factory(context.Background(), config)).(*mesosBackend)
 }
 
-// mkReq builds a basic request object.
+// mkReq builds a basic update request object.
 func (ts *TestSuite) mkReq(path string, data jsonobj) *logical.Request {
 	return &logical.Request{
 		Operation:  logical.UpdateOperation,
 		Connection: &logical.Connection{},
 		Path:       path,
 		Data:       data,
+		Storage:    ts.storage,
+	}
+}
+
+// mkReadReq builds a basic read request object.
+func (ts *TestSuite) mkReadReq(path string) *logical.Request {
+	return &logical.Request{
+		Operation:  logical.ReadOperation,
+		Connection: &logical.Connection{},
+		Path:       path,
 		Storage:    ts.storage,
 	}
 }
@@ -91,6 +101,12 @@ func (ts *TestSuite) Login(taskID string) *logical.Auth {
 // GetStored retrieves a value from Vault storage.
 func (ts *TestSuite) GetStored(key string) *logical.StorageEntry {
 	return ts.WithoutError(ts.storage.Get(context.Background(), key)).(*logical.StorageEntry)
+}
+
+// PutStored writes a value to Vault storage.
+func (ts *TestSuite) PutStored(key string, value interface{}) {
+	ts.Require().NoError(
+		ts.storage.Put(context.Background(), ts.mkStorageEntry(key, value)))
 }
 
 // mkStorageEntry builds a StorageEntry object with errors handled.
