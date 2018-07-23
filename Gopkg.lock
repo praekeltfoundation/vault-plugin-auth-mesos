@@ -25,6 +25,16 @@
   version = "v1.1.0"
 
 [[projects]]
+  name = "github.com/gogo/protobuf"
+  packages = [
+    "gogoproto",
+    "proto",
+    "protoc-gen-gogo/descriptor"
+  ]
+  revision = "636bf0302bc95575d69441b25a2603156ffdddf1"
+  version = "v1.1.1"
+
+[[projects]]
   name = "github.com/golang/protobuf"
   packages = [
     "proto",
@@ -170,6 +180,30 @@
   revision = "3520598351bb3500a49ae9563f5539666ae0a27c"
 
 [[projects]]
+  name = "github.com/mesos/mesos-go"
+  packages = [
+    "api/v1/lib",
+    "api/v1/lib/allocator",
+    "api/v1/lib/client",
+    "api/v1/lib/debug",
+    "api/v1/lib/encoding",
+    "api/v1/lib/encoding/codecs",
+    "api/v1/lib/encoding/framing",
+    "api/v1/lib/encoding/json",
+    "api/v1/lib/encoding/proto",
+    "api/v1/lib/httpcli",
+    "api/v1/lib/httpcli/apierrors",
+    "api/v1/lib/httpcli/httpmaster",
+    "api/v1/lib/maintenance",
+    "api/v1/lib/master",
+    "api/v1/lib/master/calls",
+    "api/v1/lib/quota",
+    "api/v1/lib/recordio"
+  ]
+  revision = "62cdc962072279174f51f718be27b7e0615ca323"
+  version = "v0.0.6"
+
+[[projects]]
   branch = "master"
   name = "github.com/mitchellh/go-homedir"
   packages = ["."]
@@ -198,6 +232,15 @@
   packages = ["difflib"]
   revision = "792786c7400a136282c1664665ae0a8db921c6c2"
   version = "v1.0.0"
+
+[[projects]]
+  branch = "master"
+  name = "github.com/pquerna/ffjson"
+  packages = [
+    "fflib/v1",
+    "fflib/v1/internal"
+  ]
+  revision = "af8b230fcd2007c7095168ca8ab94c68b60840c6"
 
 [[projects]]
   name = "github.com/ryanuber/go-glob"
@@ -305,6 +348,6 @@
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
-  inputs-digest = "3fe861f91cde17146c83d7848026e9aa38de422280242115ded3170d3c998de4"
+  inputs-digest = "fff131786bed61993e887349e613df90fb9fe63858ecdc8603112765e293f6ef"
   solver-name = "gps-cdcl"
   solver-version = 1
