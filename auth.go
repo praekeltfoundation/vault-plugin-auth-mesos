@@ -79,7 +79,7 @@ func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *f
 	return &logical.Response{
 		Auth: &logical.Auth{
 			Policies: policies,
-			Period:   cfg.TTL,
+			Period:   cfg.Period,
 			LeaseOptions: logical.LeaseOptions{
 				Renewable: true,
 			},
@@ -115,7 +115,7 @@ func (b *mesosBackend) authRenew(ctx context.Context, req *logical.Request, d *f
 	// can update the renewal period (in case the config has changed since last
 	// time) without modifying the request data.
 	auth := *req.Auth
-	auth.Period = cfg.TTL
+	auth.Period = cfg.Period
 
 	return &logical.Response{Auth: &auth}, nil
 }

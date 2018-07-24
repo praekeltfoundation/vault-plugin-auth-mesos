@@ -23,7 +23,7 @@ func (ts *ConfigTests) Test_create_invalid() {
 	ts.SetupBackend()
 	ts.Nil(ts.GetStored("config"))
 
-	req := ts.mkReq("config", jsonobj{"ttl": "42s"})
+	req := ts.mkReq("config", jsonobj{"period": "42s"})
 	resp := ts.HandleRequest(req)
 	ts.EqualError(resp.Error(), "base-url not configured")
 
@@ -37,13 +37,13 @@ func (ts *ConfigTests) Test_create_full() {
 
 	req := ts.mkReq("config", jsonobj{
 		"base-url": "http://master.mesos:5050",
-		"ttl":      "42s",
+		"period":   "42s",
 	})
 	ts.Equal(ts.HandleRequest(req), &logical.Response{})
 
 	ts.StoredEqual("config", config{
 		BaseURL: "http://master.mesos:5050",
-		TTL:     42 * time.Second,
+		Period:  42 * time.Second,
 	})
 }
 
@@ -52,22 +52,22 @@ func (ts *ConfigTests) Test_update_full() {
 	ts.SetupBackend()
 	ts.HandleRequestSuccess(ts.mkReq("config", jsonobj{
 		"base-url": "http://master.mesos:5050",
-		"ttl":      "42s",
+		"period":   "42s",
 	}))
 	ts.StoredEqual("config", config{
 		BaseURL: "http://master.mesos:5050",
-		TTL:     42 * time.Second,
+		Period:  42 * time.Second,
 	})
 
 	req := ts.mkReq("config", jsonobj{
 		"base-url": "http://localhost:5050",
-		"ttl":      "7m",
+		"period":   "7m",
 	})
 	ts.Equal(ts.HandleRequest(req), &logical.Response{})
 
 	ts.StoredEqual("config", config{
 		BaseURL: "http://localhost:5050",
-		TTL:     420 * time.Second,
+		Period:  420 * time.Second,
 	})
 }
 
@@ -76,20 +76,20 @@ func (ts *ConfigTests) Test_update_partial() {
 	ts.SetupBackend()
 	ts.HandleRequestSuccess(ts.mkReq("config", jsonobj{
 		"base-url": "http://master.mesos:5050",
-		"ttl":      "42s",
+		"period":   "42s",
 	}))
 	ts.StoredEqual("config", config{
 		BaseURL: "http://master.mesos:5050",
-		TTL:     42 * time.Second,
+		Period:  42 * time.Second,
 	})
 
-	// Update just the TTL.
-	req1 := ts.mkReq("config", jsonobj{"ttl": "7m"})
+	// Update just the Period.
+	req1 := ts.mkReq("config", jsonobj{"period": "7m"})
 	ts.Equal(ts.HandleRequest(req1), &logical.Response{})
 
 	ts.StoredEqual("config", config{
 		BaseURL: "http://master.mesos:5050",
-		TTL:     420 * time.Second,
+		Period:  420 * time.Second,
 	})
 
 	// Update just the base URL.
@@ -98,7 +98,7 @@ func (ts *ConfigTests) Test_update_partial() {
 
 	ts.StoredEqual("config", config{
 		BaseURL: "http://localhost:5050",
-		TTL:     420 * time.Second,
+		Period:  420 * time.Second,
 	})
 }
 
@@ -116,14 +116,14 @@ func (ts *ConfigTests) Test_read_existing_config() {
 	ts.SetupBackend()
 	ts.HandleRequestSuccess(ts.mkReq("config", jsonobj{
 		"base-url": "http://master.mesos:5050",
-		"ttl":      "420s",
+		"period":   "420s",
 	}))
 
 	req := ts.mkReadReq("config")
 	ts.Equal(ts.HandleRequest(req), &logical.Response{
 		Data: jsonobj{
 			"base-url": "http://master.mesos:5050",
-			"ttl":      "7m0s",
+			"period":   "7m0s",
 		},
 	})
 }
@@ -136,5 +136,5 @@ func (ts *ConfigTests) Test_broken_config() {
 
 	errmsg := "json: cannot unmarshal object into Go struct field config.BaseURL of type string"
 	ts.HandleRequestError(ts.mkReadReq("config"), errmsg)
-	ts.HandleRequestError(ts.mkReq("config", jsonobj{"ttl": "42s"}), errmsg)
+	ts.HandleRequestError(ts.mkReq("config", jsonobj{"period": "42s"}), errmsg)
 }

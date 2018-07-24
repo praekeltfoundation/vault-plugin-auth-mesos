@@ -109,7 +109,7 @@ func (ts *AuthTests) Test_login_failed_task() {
 // Token renewal period is configurable.
 func (ts *AuthTests) Test_login_period_configurable() {
 	ts.SetupBackendWithMesos()
-	ts.HandleRequestSuccess(ts.mkReq("config", jsonobj{"ttl": "420s"}))
+	ts.HandleRequestSuccess(ts.mkReq("config", jsonobj{"period": "420s"}))
 	ts.AddTask(mkTask("task", "task.abc-123", mesos.TASK_RUNNING))
 	ts.SetTaskPolicies("task", "insurance")
 
@@ -184,7 +184,7 @@ func (ts *AuthTests) Test_renewal_period_configurable() {
 	auth := ts.Login("task.abc-123")
 	ts.Equal(auth.Period, 10*time.Minute)
 
-	ts.HandleRequestSuccess(ts.mkReq("config", jsonobj{"ttl": "420s"}))
+	ts.HandleRequestSuccess(ts.mkReq("config", jsonobj{"period": "420s"}))
 
 	resp := ts.HandleRequest(ts.mkRenew(auth))
 	// The renewal auth has the updated period.

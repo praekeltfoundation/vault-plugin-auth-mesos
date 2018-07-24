@@ -8,7 +8,7 @@ import (
 	"github.com/hashicorp/vault/logical/framework"
 )
 
-const defaultTTL = 10 * time.Minute
+const defaultPeriod = 10 * time.Minute
 
 // pathConfig returns the "config" path struct. It is a function rather than a
 // method because we never call it once the backend struct is built and we
@@ -21,7 +21,7 @@ func pathConfig(b *mesosBackend) *framework.Path {
 				Type:        framework.TypeString,
 				Description: "Mesos API base URL.",
 			},
-			"ttl": {
+			"period": {
 				Type:        framework.TypeDurationSecond,
 				Description: "Duration after which authentication will be expired",
 			},
@@ -37,13 +37,13 @@ func pathConfig(b *mesosBackend) *framework.Path {
 // config is used to store plugin configuration.
 type config struct {
 	BaseURL string
-	TTL     time.Duration
+	Period  time.Duration
 }
 
 // configDefault returns a new config containing default settings.
 func configDefault() *config {
 	return &config{
-		TTL: defaultTTL,
+		Period: defaultPeriod,
 	}
 }
 
@@ -67,8 +67,8 @@ func (b *mesosBackend) pathConfigWrite(ctx context.Context, req *logical.Request
 		cfg.BaseURL = baseURL.(string)
 	}
 
-	if ttl, ok := d.GetOk("ttl"); ok {
-		cfg.TTL = time.Duration(ttl.(int)) * time.Second
+	if period, ok := d.GetOk("period"); ok {
+		cfg.Period = time.Duration(period.(int)) * time.Second
 	}
 
 	if cfg.BaseURL == "" {
@@ -91,7 +91,7 @@ func (b *mesosBackend) pathConfigRead(ctx context.Context, req *logical.Request,
 	resp := &logical.Response{
 		Data: jsonobj{
 			"base-url": cfg.BaseURL,
-			"ttl":      cfg.TTL.String(),
+			"period":   cfg.Period.String(),
 		},
 	}
 	return resp, nil
