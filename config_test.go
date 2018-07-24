@@ -20,7 +20,7 @@ func Test_Config(t *testing.T) { suite.Run(t, new(ConfigTests)) }
 
 // We cannot create an invalid config.
 func (ts *ConfigTests) Test_create_invalid() {
-	ts.SetupBackend()
+	ts.SetupUnconfiguredBackend()
 	ts.Nil(ts.GetStored("config"))
 
 	req := ts.mkReq("config", jsonobj{"ttl": "42s"})
@@ -32,7 +32,7 @@ func (ts *ConfigTests) Test_create_invalid() {
 
 // We can create a new config.
 func (ts *ConfigTests) Test_create_full() {
-	ts.SetupBackend()
+	ts.SetupUnconfiguredBackend()
 	ts.Nil(ts.GetStored("config"))
 
 	req := ts.mkReq("config", jsonobj{
@@ -49,7 +49,7 @@ func (ts *ConfigTests) Test_create_full() {
 
 // We can completely replace a config.
 func (ts *ConfigTests) Test_update_full() {
-	ts.SetupBackend()
+	ts.SetupUnconfiguredBackend()
 	ts.HandleRequestSuccess(ts.mkReq("config", jsonobj{
 		"base-url": "http://master.mesos:5050",
 		"ttl":      "42s",
@@ -73,7 +73,7 @@ func (ts *ConfigTests) Test_update_full() {
 
 // We can partially update a config.
 func (ts *ConfigTests) Test_update_partial() {
-	ts.SetupBackend()
+	ts.SetupUnconfiguredBackend()
 	ts.HandleRequestSuccess(ts.mkReq("config", jsonobj{
 		"base-url": "http://master.mesos:5050",
 		"ttl":      "42s",
@@ -104,7 +104,7 @@ func (ts *ConfigTests) Test_update_partial() {
 
 // If there is no config to read, we get a nil response.
 func (ts *ConfigTests) Test_read_no_config() {
-	ts.SetupBackend()
+	ts.SetupUnconfiguredBackend()
 	ts.Nil(ts.GetStored("config"))
 
 	req := ts.mkReadReq("config")
@@ -113,7 +113,7 @@ func (ts *ConfigTests) Test_read_no_config() {
 
 // We can read the existing config.
 func (ts *ConfigTests) Test_read_existing_config() {
-	ts.SetupBackend()
+	ts.SetupUnconfiguredBackend()
 	ts.HandleRequestSuccess(ts.mkReq("config", jsonobj{
 		"base-url": "http://master.mesos:5050",
 		"ttl":      "420s",
@@ -130,7 +130,7 @@ func (ts *ConfigTests) Test_read_existing_config() {
 
 // We cannot read or update a broken config.
 func (ts *ConfigTests) Test_broken_config() {
-	ts.SetupBackend()
+	ts.SetupUnconfiguredBackend()
 	// Manually write a config value that cannot be unmarshalled.
 	ts.PutStored("config", jsonobj{"BaseURL": jsonobj{}})
 

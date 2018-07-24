@@ -85,22 +85,49 @@ func (ts *AuthTests) Test_login_only_once() {
 	ts.HandleRequestError(req, "permission denied")
 }
 
+// Token renewal period is configurable.
+func (ts *AuthTests) Test_login_period_configurable() {
+	ts.SetupBackend()
+	ts.HandleRequestSuccess(ts.mkReq("config", jsonobj{"ttl": "420s"}))
+
+	temporarySetOfExistingTasks["task.abc-123"] = true
+	ts.SetTaskPolicies("task", "insurance")
+
+	resp := ts.HandleRequest(ts.mkReq("login", jsonobj{"task-id": "task.abc-123"}))
+	ts.Equal(resp.Auth, &logical.Auth{
+		Policies:     []string{"insurance"},
+		Period:       7 * time.Minute,
+		LeaseOptions: logical.LeaseOptions{Renewable: true},
+		InternalData: jsonobj{"task-id": "task.abc-123"},
+	})
+}
+
+// Can't log in with an unconfigured backend.
+func (ts *AuthTests) Test_login_unconfigured_backend() {
+	ts.SetupUnconfiguredBackend()
+	ts.HandleRequestError(ts.mkReq("login", jsonobj{}), "backend not configured")
+}
+
 ////////////////////////
 // Tests for renewal. //
 ////////////////////////
+
+// mkRenew builds a renewal request.
+func (ts *AuthTests) mkRenew(auth *logical.Auth) *logical.Request {
+	return &logical.Request{
+		Operation:       "renew",
+		Path:            "login",
+		Auth:            auth,
+		Unauthenticated: false,
+		Storage:         ts.storage,
+	}
+}
 
 // Can't renew if you're not logged in.
 func (ts *AuthTests) Test_renewal_not_logged_in() {
 	ts.SetupBackend()
 
-	req := &logical.Request{
-		Operation:       "renew",
-		Path:            "login",
-		Auth:            nil,
-		Unauthenticated: false,
-	}
-
-	ts.HandleRequestError(req, "request has no secret")
+	ts.HandleRequestError(ts.mkRenew(nil), "request has no secret")
 }
 
 // Can renew if you are logged in and your task still exists.
@@ -110,14 +137,7 @@ func (ts *AuthTests) Test_renewal_logged_in() {
 	ts.SetTaskPolicies("logged-in-task", "foreign")
 	auth := ts.Login("logged-in-task.abc-123")
 
-	req := &logical.Request{
-		Operation:       "renew",
-		Path:            "login",
-		Auth:            auth,
-		Unauthenticated: false,
-	}
-
-	resp := ts.HandleRequest(req)
+	resp := ts.HandleRequest(ts.mkRenew(auth))
 	ts.Equal(auth, resp.Auth)
 }
 
@@ -129,12 +149,34 @@ func (ts *AuthTests) Test_renewal_task_ended() {
 	auth := ts.Login("short-task.abc-123")
 	delete(temporarySetOfExistingTasks, "short-task.abc-123")
 
-	req := &logical.Request{
-		Operation:       "renew",
-		Path:            "login",
-		Auth:            auth,
-		Unauthenticated: false,
-	}
+	ts.HandleRequestError(ts.mkRenew(auth), "task short-task.abc-123 not found during renewal")
+}
 
-	ts.HandleRequestError(req, "task short-task.abc-123 not found during renewal")
+// Renewal period is configurable between login and renewal.
+func (ts *AuthTests) Test_renewal_period_configurable() {
+	ts.SetupBackend()
+	temporarySetOfExistingTasks["task.abc-123"] = true
+	ts.SetTaskPolicies("task", "insurance")
+	auth := ts.Login("task.abc-123")
+	ts.Equal(auth.Period, 10*time.Minute)
+
+	ts.HandleRequestSuccess(ts.mkReq("config", jsonobj{"ttl": "420s"}))
+
+	resp := ts.HandleRequest(ts.mkRenew(auth))
+	// The renewal auth has the updated period.
+	ts.Equal(resp.Auth.Period, 7*time.Minute)
+	// The original login auth is unmodified.
+	ts.Equal(auth.Period, 10*time.Minute)
+}
+
+// Can't renew with an unconfigured backend.
+func (ts *AuthTests) Test_renewal_unconfigured_backend() {
+	ts.SetupBackend()
+	temporarySetOfExistingTasks["logged-in-task.abc-123"] = true
+	ts.SetTaskPolicies("logged-in-task", "foreign")
+	auth := ts.Login("logged-in-task.abc-123")
+
+	ts.DeleteStored("config")
+
+	ts.HandleRequestError(ts.mkRenew(auth), "backend not configured")
 }

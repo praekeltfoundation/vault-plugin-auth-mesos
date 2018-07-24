@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/framework"
@@ -42,6 +41,11 @@ func tiKey(taskPrefix string) string {
 func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	rh := requestHelper{ctx: ctx, storage: req.Storage}
 
+	cfg, err := rh.getConfig()
+	if err != nil {
+		return nil, err
+	}
+
 	taskID := d.Get("task-id").(string)
 	if !b.verifyTaskExists(taskID) {
 		return nil, logical.ErrPermissionDenied
@@ -68,7 +72,7 @@ func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *f
 	return &logical.Response{
 		Auth: &logical.Auth{
 			Policies: policies,
-			Period:   10 * time.Minute,
+			Period:   cfg.TTL,
 			LeaseOptions: logical.LeaseOptions{
 				Renewable: true,
 			},
@@ -80,6 +84,13 @@ func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *f
 
 // authRenew is the renew callback for tokens created by this plugin.
 func (b *mesosBackend) authRenew(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	rh := requestHelper{ctx: ctx, storage: req.Storage}
+
+	cfg, err := rh.getConfig()
+	if err != nil {
+		return nil, err
+	}
+
 	b.Logger().Info("RENEW", "auth", fmt.Sprintf("%#v", req.Auth))
 
 	taskID := req.Auth.InternalData["task-id"].(string)
@@ -87,9 +98,13 @@ func (b *mesosBackend) authRenew(ctx context.Context, req *logical.Request, d *f
 		return nil, fmt.Errorf("task %s not found during renewal", taskID)
 	}
 
-	// For a standard periodic renewal, we only need to return the Auth struct
-	// we're given in the request.
-	return &logical.Response{Auth: req.Auth}, nil
+	// We make a (shallow) copy of the Auth struct from the request so that we
+	// can update the renewal period (in case the config has changed since last
+	// time) without modifying the request data.
+	auth := *req.Auth
+	auth.Period = cfg.TTL
+
+	return &logical.Response{Auth: &auth}, nil
 }
 
 // verifyTaskExists checks that a taskID is valid and identifies an existing

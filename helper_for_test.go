@@ -30,9 +30,10 @@ func (ts *TestSuite) SetupTest() {
 	temporarySetOfExistingTasks = map[string]bool{}
 }
 
-// SetupBackend creates a suitable backend object (and associated storage
-// object) for use in a test.
-func (ts *TestSuite) SetupBackend() {
+// SetupUnconfiguredBackend creates a suitable backend object (and associated
+// storage object) for use in a test. In most cases, SetupBackend should be
+// used instead.
+func (ts *TestSuite) SetupUnconfiguredBackend() {
 	ts.Require().Nil(ts.backend, "Backend already set up.")
 	ts.storage = &logical.InmemStorage{}
 	config := &logical.BackendConfig{
@@ -41,6 +42,28 @@ func (ts *TestSuite) SetupBackend() {
 	}
 
 	ts.backend = ts.WithoutError(Factory(context.Background(), config)).(*mesosBackend)
+}
+
+// SetupBackend creates a suitable backend object (and associated storage
+// object) for use in a test.
+func (ts *TestSuite) SetupBackend() {
+	ts.SetupUnconfiguredBackend()
+	// TODO: Use a FakeMesos URL.
+	ts.ConfigureBackend("bad backend url!")
+}
+
+// ConfigureBackend configures the backend with the minimum mandatory settings
+// on top of the defaults.
+func (ts *TestSuite) ConfigureBackend(baseURL string) {
+	ts.requireBackend()
+	cfg := configDefault()
+	cfg.BaseURL = baseURL
+	ts.PutStored("config", cfg)
+}
+
+// requireBackend asserts that this test has a non-nil backend.
+func (ts *TestSuite) requireBackend() {
+	ts.Require().NotNil(ts.backend, "Backend not set up.")
 }
 
 // mkReq builds a basic update request object.
@@ -67,7 +90,7 @@ func (ts *TestSuite) mkReadReq(path string) *logical.Request {
 // HandleRequestRaw is a thin wrapper around the backend's HandleRequest method
 // to avoid some boilerplate in the tests.
 func (ts *TestSuite) HandleRequestRaw(req *logical.Request) (*logical.Response, error) {
-	ts.Require().NotNil(ts.backend, "Backend not set up.")
+	ts.requireBackend()
 	return ts.backend.HandleRequest(context.Background(), req)
 }
 
@@ -107,6 +130,11 @@ func (ts *TestSuite) GetStored(key string) *logical.StorageEntry {
 func (ts *TestSuite) PutStored(key string, value interface{}) {
 	ts.Require().NoError(
 		ts.storage.Put(context.Background(), ts.mkStorageEntry(key, value)))
+}
+
+// DeleteStored removes a value from Vault storage.
+func (ts *TestSuite) DeleteStored(key string) {
+	ts.Require().NoError(ts.storage.Delete(context.Background(), key))
 }
 
 // mkStorageEntry builds a StorageEntry object with errors handled.

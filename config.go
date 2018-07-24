@@ -52,7 +52,7 @@ func (b *mesosBackend) pathConfigWrite(ctx context.Context, req *logical.Request
 	rh := requestHelper{ctx: ctx, storage: req.Storage}
 
 	// TODO: Decide if we want to allow invalid configs to be overwritten.
-	cfg, err := rh.getConfig()
+	cfg, err := rh.getConfigOrNil()
 	if err != nil {
 		return nil, err
 	}
@@ -83,7 +83,7 @@ func (b *mesosBackend) pathConfigWrite(ctx context.Context, req *logical.Request
 func (b *mesosBackend) pathConfigRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	rh := requestHelper{ctx: ctx, storage: req.Storage}
 
-	cfg, err := rh.getConfig()
+	cfg, err := rh.getConfigOrNil()
 	if cfg == nil || err != nil {
 		return nil, err
 	}
@@ -95,17 +95,4 @@ func (b *mesosBackend) pathConfigRead(ctx context.Context, req *logical.Request,
 		},
 	}
 	return resp, nil
-}
-
-// getConfig fetches the config from Vault, returning nil if there is no config.
-func (rh *requestHelper) getConfig() (*config, error) {
-	var cfg *config
-	err := rh.fetch("config", func(se *logical.StorageEntry) error {
-		if se == nil {
-			return nil
-		}
-		cfg = &config{}
-		return se.DecodeJSON(cfg)
-	})
-	return cfg, err
 }
