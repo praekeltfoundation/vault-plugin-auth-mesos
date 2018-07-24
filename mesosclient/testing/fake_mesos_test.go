@@ -39,9 +39,9 @@ func (ts *FakeMesosTests) Test_AddTask_new() {
 
 	task := mkTask("task", "abc-123", mesos.TASK_RUNNING)
 
-	ts.Equal(fm.tasks, map[string]mesos.Task{})
+	ts.Equal(fm.tasks, taskMap{})
 	fm.AddTask(task)
-	ts.Equal(fm.tasks, map[string]mesos.Task{"abc-123": task})
+	ts.Equal(fm.tasks, taskMap{"abc-123": &task})
 }
 
 // We can add many new tasks to FakeMesos.
@@ -52,9 +52,9 @@ func (ts *FakeMesosTests) Test_AddTask_multiple() {
 	task1 := mkTask("task", "abc-123", mesos.TASK_RUNNING)
 	task2 := mkTask("task", "abc-124", mesos.TASK_RUNNING)
 
-	ts.Equal(fm.tasks, map[string]mesos.Task{})
+	ts.Equal(fm.tasks, taskMap{})
 	fm.AddTask(task1, task2)
-	ts.Equal(fm.tasks, map[string]mesos.Task{"abc-123": task1, "abc-124": task2})
+	ts.Equal(fm.tasks, taskMap{"abc-123": &task1, "abc-124": &task2})
 }
 
 // We can't add duplicate tasks to FakeMesos.
@@ -66,12 +66,114 @@ func (ts *FakeMesosTests) Test_AddTask_duplicate() {
 	task1dup := mkTask("task1", "abc-123", mesos.TASK_RUNNING)
 	task2 := mkTask("task1", "abc-124", mesos.TASK_RUNNING)
 
-	ts.Equal(fm.tasks, map[string]mesos.Task{})
+	ts.Equal(fm.tasks, taskMap{})
 
 	ts.Panics(func() { fm.AddTask(task1, task1dup, task2) })
 	// We successfully added the first task, but not the duplicate or the
 	// second task.
-	ts.Equal(fm.tasks, map[string]mesos.Task{"abc-123": task1})
+	ts.Equal(fm.tasks, taskMap{"abc-123": &task1})
+}
+
+// We can remove a task from FakeMesos.
+func (ts *FakeMesosTests) Test_RemoveTask_one() {
+	fm := NewFakeMesos()
+	ts.AddCleanup(fm.Close)
+
+	task := mkTask("task", "abc-123", mesos.TASK_RUNNING)
+	fm.AddTask(task)
+	ts.Equal(fm.tasks, taskMap{"abc-123": &task})
+
+	fm.RemoveTask("abc-123")
+	ts.Equal(fm.tasks, taskMap{})
+}
+
+// We can remove multiple tasks from FakeMesos. Missing tasks are ignored.
+func (ts *FakeMesosTests) Test_RemoveTask_multiple() {
+	fm := NewFakeMesos()
+	ts.AddCleanup(fm.Close)
+
+	task1 := mkTask("task", "abc-123", mesos.TASK_RUNNING)
+	task2 := mkTask("task", "abc-124", mesos.TASK_RUNNING)
+	task3 := mkTask("hello", "world-123", mesos.TASK_RUNNING)
+
+	fm.AddTask(task1, task2, task3)
+	ts.Equal(fm.tasks, taskMap{
+		"abc-123":   &task1,
+		"abc-124":   &task2,
+		"world-123": &task3,
+	})
+
+	fm.RemoveTask("abc-123", "abc-127", "world-123")
+	ts.Equal(fm.tasks, taskMap{"abc-124": &task2})
+}
+
+// We can update a task in FakeMesos.
+func (ts *FakeMesosTests) Test_UpdateTask_one() {
+	fm := NewFakeMesos()
+	ts.AddCleanup(fm.Close)
+
+	task := mkTask("task", "abc-123", mesos.TASK_RUNNING)
+	fm.AddTask(task)
+	ts.Equal(fm.tasks, taskMap{"abc-123": &task})
+
+	fm.UpdateTask(func(t *mesos.Task) { t.Name = "cask" }, "abc-123")
+
+	updatedTask := mkTask("cask", "abc-123", mesos.TASK_RUNNING)
+	ts.Equal(fm.tasks, taskMap{"abc-123": &updatedTask})
+}
+
+// We can update multiple tasks in FakeMesos.
+func (ts *FakeMesosTests) Test_UpdateTask_multiple() {
+	fm := NewFakeMesos()
+	ts.AddCleanup(fm.Close)
+
+	task1 := mkTask("task", "abc-123", mesos.TASK_RUNNING)
+	task2 := mkTask("task", "abc-124", mesos.TASK_RUNNING)
+	task3 := mkTask("hello", "world-123", mesos.TASK_RUNNING)
+
+	fm.AddTask(task1, task2, task3)
+	ts.Equal(fm.tasks, taskMap{
+		"abc-123":   &task1,
+		"abc-124":   &task2,
+		"world-123": &task3,
+	})
+
+	fm.UpdateTask(UpdateState(mesos.TASK_FINISHED), "abc-123", "world-123")
+
+	updatedTask1 := mkTask("task", "abc-123", mesos.TASK_FINISHED)
+	updatedTask3 := mkTask("hello", "world-123", mesos.TASK_FINISHED)
+	ts.Equal(fm.tasks, taskMap{
+		"abc-123":   &updatedTask1,
+		"abc-124":   &task2,
+		"world-123": &updatedTask3,
+	})
+}
+
+// We can't update missing tasks in FakeMesos.
+func (ts *FakeMesosTests) Test_UpdateTask_missing() {
+	fm := NewFakeMesos()
+	ts.AddCleanup(fm.Close)
+
+	task1 := mkTask("task", "abc-123", mesos.TASK_RUNNING)
+	task2 := mkTask("task", "abc-124", mesos.TASK_RUNNING)
+	task3 := mkTask("hello", "world-123", mesos.TASK_RUNNING)
+
+	fm.AddTask(task1, task2, task3)
+	ts.Equal(fm.tasks, taskMap{
+		"abc-123":   &task1,
+		"abc-124":   &task2,
+		"world-123": &task3,
+	})
+
+	f := UpdateState(mesos.TASK_FINISHED)
+	ts.Panics(func() { fm.UpdateTask(f, "abc-123", "abc-127", "world-123") })
+	// We successfully updated task1, but not the missing task or task3.
+	updatedTask1 := mkTask("task", "abc-123", mesos.TASK_FINISHED)
+	ts.Equal(fm.tasks, taskMap{
+		"abc-123":   &updatedTask1,
+		"abc-124":   &task2,
+		"world-123": &task3,
+	})
 }
 
 // Without tasks to get, we get no tasks.

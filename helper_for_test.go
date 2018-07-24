@@ -6,6 +6,8 @@ import (
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault/helper/logging"
 	"github.com/hashicorp/vault/logical"
+	mesos "github.com/mesos/mesos-go/api/v1/lib"
+	mctesting "github.com/praekeltfoundation/vault-plugin-auth-mesos/mesosclient/testing"
 	"github.com/praekeltfoundation/vault-plugin-auth-mesos/testutils"
 )
 
@@ -15,8 +17,9 @@ import (
 // to.
 type TestSuite struct {
 	testutils.TestSuite
-	storage logical.Storage
-	backend *mesosBackend
+	storage   logical.Storage
+	fakeMesos *mctesting.FakeMesos
+	backend   *mesosBackend
 }
 
 // SetupTest clears all our TestSuite state at the start of each test, because
@@ -25,16 +28,15 @@ func (ts *TestSuite) SetupTest() {
 	ts.TestSuite.SetupTest()
 
 	ts.storage = nil
+	ts.fakeMesos = nil
 	ts.backend = nil
-	// Clear our hacky task set global for each test.
-	temporarySetOfExistingTasks = map[string]bool{}
 }
 
-// SetupUnconfiguredBackend creates a suitable backend object (and associated
-// storage object) for use in a test. In most cases, SetupBackend should be
-// used instead.
-func (ts *TestSuite) SetupUnconfiguredBackend() {
+// SetupBackend creates an unconfigured backend object (and associated storage
+// object) for use in a test.
+func (ts *TestSuite) SetupBackend() {
 	ts.Require().Nil(ts.backend, "Backend already set up.")
+
 	ts.storage = &logical.InmemStorage{}
 	config := &logical.BackendConfig{
 		Logger:      logging.NewVaultLogger(log.Trace),
@@ -44,12 +46,14 @@ func (ts *TestSuite) SetupUnconfiguredBackend() {
 	ts.backend = ts.WithoutError(Factory(context.Background(), config)).(*mesosBackend)
 }
 
-// SetupBackend creates a suitable backend object (and associated storage
-// object) for use in a test.
-func (ts *TestSuite) SetupBackend() {
-	ts.SetupUnconfiguredBackend()
-	// TODO: Use a FakeMesos URL.
-	ts.ConfigureBackend("bad backend url!")
+// SetupBackendWithMesos creates a FakeMesos and a backend configured to use
+// it. This is handy for tests that require a configured backend that
+// communicates with Mesos.
+func (ts *TestSuite) SetupBackendWithMesos() {
+	ts.SetupBackend()
+	ts.fakeMesos = mctesting.NewFakeMesos()
+	ts.AddCleanup(ts.fakeMesos.Close)
+	ts.ConfigureBackend(ts.fakeMesos.GetBaseURL())
 }
 
 // ConfigureBackend configures the backend with the minimum mandatory settings
@@ -64,6 +68,31 @@ func (ts *TestSuite) ConfigureBackend(baseURL string) {
 // requireBackend asserts that this test has a non-nil backend.
 func (ts *TestSuite) requireBackend() {
 	ts.Require().NotNil(ts.backend, "Backend not set up.")
+}
+
+// requireFakeMesos asserts that this test has a non-nil fakeMesos.
+func (ts *TestSuite) requireFakeMesos() {
+	ts.Require().NotNil(ts.fakeMesos, "FakeMesos not set up.")
+}
+
+// AddTask adds one or more new tasks to fake Mesos. Panics if a task already
+// exists.
+func (ts *TestSuite) AddTask(tasks ...mesos.Task) {
+	ts.requireFakeMesos()
+	ts.fakeMesos.AddTask(tasks...)
+}
+
+// RemoveTask removes one or more tasks by id. Missing tasks are ignored.
+func (ts *TestSuite) RemoveTask(taskIDs ...string) {
+	ts.requireFakeMesos()
+	ts.fakeMesos.RemoveTask(taskIDs...)
+}
+
+// UpdateTask updates one or more tasks using the given update function. Panics
+// if a task doesn't exist.
+func (ts *TestSuite) UpdateTask(updateFunc mctesting.TaskUpdateFunc, taskIDs ...string) {
+	ts.requireFakeMesos()
+	ts.fakeMesos.UpdateTask(updateFunc, taskIDs...)
 }
 
 // mkReq builds a basic update request object.

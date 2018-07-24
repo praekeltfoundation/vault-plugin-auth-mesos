@@ -7,10 +7,11 @@ import (
 
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/framework"
-)
+	mesos "github.com/mesos/mesos-go/api/v1/lib"
+	"github.com/mesos/mesos-go/api/v1/lib/master"
 
-// TODO: Replace this with calls to mesos.
-var temporarySetOfExistingTasks = map[string]bool{}
+	"github.com/praekeltfoundation/vault-plugin-auth-mesos/mesosclient"
+)
 
 // pathLogin (the function) returns the "login" path struct. It is a function
 // rather than a method because we never call it once the backend struct is
@@ -46,8 +47,14 @@ func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *f
 		return nil, err
 	}
 
+	mc := mesosclient.NewClient(cfg.BaseURL)
+	rgt, err := mc.GetTasks(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	taskID := d.Get("task-id").(string)
-	if !b.verifyTaskExists(taskID) {
+	if !b.verifyTaskExists(taskID, rgt) {
 		return nil, logical.ErrPermissionDenied
 	}
 
@@ -91,10 +98,16 @@ func (b *mesosBackend) authRenew(ctx context.Context, req *logical.Request, d *f
 		return nil, err
 	}
 
+	mc := mesosclient.NewClient(cfg.BaseURL)
+	rgt, err := mc.GetTasks(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	b.Logger().Info("RENEW", "auth", fmt.Sprintf("%#v", req.Auth))
 
 	taskID := req.Auth.InternalData["task-id"].(string)
-	if !b.verifyTaskExists(taskID) {
+	if !b.verifyTaskExists(taskID, rgt) {
 		return nil, fmt.Errorf("task %s not found during renewal", taskID)
 	}
 
@@ -109,14 +122,23 @@ func (b *mesosBackend) authRenew(ctx context.Context, req *logical.Request, d *f
 
 // verifyTaskExists checks that a taskID is valid and identifies an existing
 // task.
-func (b *mesosBackend) verifyTaskExists(taskID string) bool {
+func (b *mesosBackend) verifyTaskExists(taskID string, rgt *master.Response_GetTasks) bool {
 	if taskID == "" {
 		return false
 	}
 
-	b.Logger().Debug("TODO: Check task in mesos.")
-	// TODO: Verify that the task exists.
-	return temporarySetOfExistingTasks[taskID]
+	// For our purposes, any running task will be in the TASK_RUNNING state or
+	// one of the unreachable states. We start with the most likely case.
+	for _, task := range rgt.Tasks {
+		if *task.State == mesos.TASK_RUNNING && task.TaskID.Value == taskID {
+			return true
+		}
+	}
+
+	// TODO: Check unreachable tasks. Do we want to do this differently for
+	// login vs renewal?
+
+	return false
 }
 
 // verifyTaskNotLoggedIn checks that a taskID is not already logged in and
