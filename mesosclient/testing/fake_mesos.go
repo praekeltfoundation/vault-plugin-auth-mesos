@@ -59,6 +59,9 @@ func NewFakeMesos() *FakeMesos {
 }
 
 // SetLatency sets the simulated request latency.
+//
+// This can be useful for testing race conditions and timeouts or modeling the
+// cost of external API calls in performance tests.
 func (fm *FakeMesos) SetLatency(latency time.Duration) {
 	fm.latency = latency
 }

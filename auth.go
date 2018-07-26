@@ -109,12 +109,13 @@ func (b *mesosBackend) authRenew(ctx context.Context, req *logical.Request, d *f
 		return nil, err
 	}
 
-	// :-( :-( :-( :-( :-( :-( :-( :-( :-( :-( :-(
-	taskIDorNil := req.Auth.InternalData["task-id"]
-	if taskIDorNil == nil || taskIDorNil.(string) == "" {
+	// We have to check for nil before casting to avoid a segfault, and we
+	// don't have to cast before comparing to a string.
+	nilOrTaskID := req.Auth.InternalData["task-id"]
+	if nilOrTaskID == nil || nilOrTaskID == "" {
 		return nil, fmt.Errorf("missing task-id")
 	}
-	taskID := taskIDorNil.(string)
+	taskID := nilOrTaskID.(string)
 
 	b.Logger().Info("RENEW",
 		"task-id", taskID,
