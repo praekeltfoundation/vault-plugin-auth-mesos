@@ -2,6 +2,8 @@ package mesosauth
 
 import (
 	"context"
+	"os"
+	"time"
 
 	log "github.com/hashicorp/go-hclog"
 	"github.com/hashicorp/vault/helper/logging"
@@ -52,8 +54,29 @@ func (ts *TestSuite) SetupBackend() {
 func (ts *TestSuite) SetupBackendWithMesos() {
 	ts.SetupBackend()
 	ts.fakeMesos = mctesting.NewFakeMesos()
+	ts.fakeMesos.SetLatency(getLatencyFromEnv())
 	ts.AddCleanup(ts.fakeMesos.Close)
 	ts.ConfigureBackend(ts.fakeMesos.GetBaseURL())
+}
+
+// getLatencyFromEnv reads the FakeMesos request latency from the environment.
+// An unset envvar (the default) means no latency. Invalid duration strings
+// cause panic and chaos.
+func getLatencyFromEnv() time.Duration {
+	latency, err := time.ParseDuration(getenv("VPAM_FAKE_MESOS_LATENCY", "0s"))
+	if err != nil {
+		panic(err)
+	}
+	return latency
+}
+
+// getenv is a wrapper around os.Getenv that returns a default value for empty
+// or unset envvars.
+func getenv(key, dflt string) string {
+	if val := os.Getenv(key); val != "" {
+		return val
+	}
+	return dflt
 }
 
 // ConfigureBackend configures the backend with the minimum mandatory settings

@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
+	"time"
 
 	mesos "github.com/mesos/mesos-go/api/v1/lib"
 	"github.com/mesos/mesos-go/api/v1/lib/master"
@@ -45,7 +46,8 @@ type taskMap map[string]*mesos.Task
 // payloads are supported, not JSON.
 type FakeMesos struct {
 	*httptest.Server
-	tasks taskMap
+	tasks   taskMap
+	latency time.Duration
 }
 
 // NewFakeMesos does what it says on the tin. It needs to be stopped with a
@@ -54,6 +56,11 @@ func NewFakeMesos() *FakeMesos {
 	fm := FakeMesos{tasks: taskMap{}}
 	fm.Server = httptest.NewServer(http.HandlerFunc(fm.handleAPI))
 	return &fm
+}
+
+// SetLatency sets the simulated request latency.
+func (fm *FakeMesos) SetLatency(latency time.Duration) {
+	fm.latency = latency
 }
 
 // GetBaseURL returns the fake server's base URL.
@@ -128,8 +135,10 @@ func copyTask(taskIn *mesos.Task) mesos.Task {
 	return taskOut
 }
 
-// respondGetTasks returns a GET_TASKS response.
+// respondGetTasks returns a GET_TASKS response after waiting a configured
+// duration to simulate actual request latency.
 func (fm *FakeMesos) respondGetTasks(w http.ResponseWriter) {
+	time.Sleep(fm.latency)
 	resp := master.Response{
 		Type:     master.Response_GET_TASKS,
 		GetTasks: fm.getTasks(),
