@@ -25,6 +25,7 @@ func Factory(ctx context.Context, conf *logical.BackendConfig) (logical.Backend,
 		Paths: []*framework.Path{
 			pathLogin(&b),
 			pathTaskPolicies(&b),
+			pathConfig(&b),
 		},
 		Invalidate: b.invalidate,
 		Clean:      b.cleanup,

@@ -28,7 +28,7 @@ type taskPolicies struct {
 	Policies []string
 }
 
-// taskPolicies gives us a less verbose way to build a taskPolicies value.
+// mkTaskPolicies gives us a less verbose way to build a taskPolicies value.
 func mkTaskPolicies(policies []string) taskPolicies {
 	return taskPolicies{Policies: policies}
 }

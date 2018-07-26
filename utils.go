@@ -5,6 +5,7 @@ package mesosauth
 
 import (
 	"context"
+	"errors"
 
 	"github.com/hashicorp/vault/logical"
 )
@@ -45,4 +46,28 @@ func (rh *requestHelper) fetch(key string, decode func(*logical.StorageEntry) er
 		err = decode(se)
 	}
 	return err
+}
+
+// getConfig fetches the plugin config from Vault, returning nil if there is no
+// config.
+func (rh *requestHelper) getConfigOrNil() (*config, error) {
+	var cfg *config
+	err := rh.fetch("config", func(se *logical.StorageEntry) error {
+		if se == nil {
+			return nil
+		}
+		cfg = &config{}
+		return se.DecodeJSON(cfg)
+	})
+	return cfg, err
+}
+
+// getConfig fetches the plugin config from Vault, returning an error if there
+// is no config.
+func (rh *requestHelper) getConfig() (*config, error) {
+	cfg, err := rh.getConfigOrNil()
+	if cfg == nil && err == nil {
+		err = errors.New("backend not configured")
+	}
+	return cfg, err
 }

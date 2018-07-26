@@ -38,17 +38,20 @@ var stateLifecycle = map[mesos.TaskState]int{
 	mesos.TASK_UNREACHABLE: stateUnreachable,
 }
 
+// A taskMap is a collection of tasks.
+type taskMap map[string]*mesos.Task
+
 // FakeMesos pretends to be a subset of the Mesos v1 API. Only protobuf
 // payloads are supported, not JSON.
 type FakeMesos struct {
 	*httptest.Server
-	tasks map[string]mesos.Task
+	tasks taskMap
 }
 
 // NewFakeMesos does what it says on the tin. It needs to be stopped with a
 // call to .Close() when the test is over.
 func NewFakeMesos() *FakeMesos {
-	fm := FakeMesos{tasks: map[string]mesos.Task{}}
+	fm := FakeMesos{tasks: taskMap{}}
 	fm.Server = httptest.NewServer(http.HandlerFunc(fm.handleAPI))
 	return &fm
 }
@@ -105,14 +108,24 @@ func (fm *FakeMesos) getTasks() *master.Response_GetTasks {
 	for _, task := range fm.tasks {
 		switch stateLifecycle[*task.State] {
 		case stateActive:
-			appendTask(&getTasks.Tasks, task)
+			appendTask(&getTasks.Tasks, copyTask(task))
 		case stateTerminated:
-			appendTask(&getTasks.CompletedTasks, task)
+			appendTask(&getTasks.CompletedTasks, copyTask(task))
 		case stateUnreachable:
-			appendTask(&getTasks.UnreachableTasks, task)
+			appendTask(&getTasks.UnreachableTasks, copyTask(task))
 		}
 	}
 	return &getTasks
+}
+
+// copyTask serialises and deserialises a task in order to deep-copy it.
+func copyTask(taskIn *mesos.Task) mesos.Task {
+	// We ignore all errors, because we expect the generated serialisation code
+	// to correctly-roud-trip any task we give it.
+	bytes, _ := taskIn.Marshal()
+	var taskOut mesos.Task
+	_ = taskOut.Unmarshal(bytes)
+	return taskOut
 }
 
 // respondGetTasks returns a GET_TASKS response.
@@ -134,8 +147,42 @@ func (fm *FakeMesos) AddTask(tasks ...mesos.Task) {
 		if _, ok := fm.tasks[task.TaskID.Value]; ok {
 			panic(fmt.Sprintf("Duplicate task: %s", task.TaskID.Value))
 		}
-		fm.tasks[task.TaskID.Value] = task
+		taskCopy := copyTask(&task)
+		fm.tasks[task.TaskID.Value] = &taskCopy
 	}
+}
+
+// RemoveTask removes one or more tasks by id. Missing tasks are ignored.
+func (fm *FakeMesos) RemoveTask(taskIDs ...string) {
+	for _, taskID := range taskIDs {
+		delete(fm.tasks, taskID)
+	}
+}
+
+// TaskUpdateFunc is the type of a function that updates a task.
+//
+// The task passed in should be updated in-place. Updates to TaskID are not
+// supported and may result in undefined behaviour.
+type TaskUpdateFunc func(task *mesos.Task)
+
+// UpdateTask updates one or more tasks using the given update function. Panics
+// if a task doesn't exist.
+func (fm *FakeMesos) UpdateTask(updateFunc TaskUpdateFunc, taskIDs ...string) {
+	for _, taskID := range taskIDs {
+		task, ok := fm.tasks[taskID]
+		if !ok {
+			panic(fmt.Sprintf("Unkown task: %s", task.TaskID.Value))
+		}
+		updateFunc(task)
+	}
+}
+
+// UpdateState returns a closure that updates the state of a task.
+//
+// This is less trivial than it appears, because Task.State is a pointer and
+// you can't take the address of a constant.
+func UpdateState(state mesos.TaskState) TaskUpdateFunc {
+	return func(task *mesos.Task) { task.State = &state }
 }
 
 // err2panic lets us turn "impossible" errors into panics without leaving

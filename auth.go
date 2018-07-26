@@ -4,14 +4,14 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/hashicorp/vault/logical"
 	"github.com/hashicorp/vault/logical/framework"
-)
+	mesos "github.com/mesos/mesos-go/api/v1/lib"
+	"github.com/mesos/mesos-go/api/v1/lib/master"
 
-// TODO: Replace this with calls to mesos.
-var temporarySetOfExistingTasks = map[string]bool{}
+	"github.com/praekeltfoundation/vault-plugin-auth-mesos/mesosclient"
+)
 
 // pathLogin (the function) returns the "login" path struct. It is a function
 // rather than a method because we never call it once the backend struct is
@@ -42,8 +42,19 @@ func tiKey(taskPrefix string) string {
 func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	rh := requestHelper{ctx: ctx, storage: req.Storage}
 
+	cfg, err := rh.getConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	mc := mesosclient.NewClient(cfg.BaseURL)
+	rgt, err := mc.GetTasks(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	taskID := d.Get("task-id").(string)
-	if !b.verifyTaskExists(taskID) {
+	if !b.verifyTaskExists(taskID, rgt) {
 		return nil, logical.ErrPermissionDenied
 	}
 
@@ -68,7 +79,7 @@ func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *f
 	return &logical.Response{
 		Auth: &logical.Auth{
 			Policies: policies,
-			Period:   10 * time.Minute,
+			Period:   cfg.Period,
 			LeaseOptions: logical.LeaseOptions{
 				Renewable: true,
 			},
@@ -80,28 +91,54 @@ func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *f
 
 // authRenew is the renew callback for tokens created by this plugin.
 func (b *mesosBackend) authRenew(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	rh := requestHelper{ctx: ctx, storage: req.Storage}
+
+	cfg, err := rh.getConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	mc := mesosclient.NewClient(cfg.BaseURL)
+	rgt, err := mc.GetTasks(ctx)
+	if err != nil {
+		return nil, err
+	}
+
 	b.Logger().Info("RENEW", "auth", fmt.Sprintf("%#v", req.Auth))
 
 	taskID := req.Auth.InternalData["task-id"].(string)
-	if !b.verifyTaskExists(taskID) {
+	if !b.verifyTaskExists(taskID, rgt) {
 		return nil, fmt.Errorf("task %s not found during renewal", taskID)
 	}
 
-	// For a standard periodic renewal, we only need to return the Auth struct
-	// we're given in the request.
-	return &logical.Response{Auth: req.Auth}, nil
+	// We make a (shallow) copy of the Auth struct from the request so that we
+	// can update the renewal period (in case the config has changed since last
+	// time) without modifying the request data.
+	auth := *req.Auth
+	auth.Period = cfg.Period
+
+	return &logical.Response{Auth: &auth}, nil
 }
 
 // verifyTaskExists checks that a taskID is valid and identifies an existing
 // task.
-func (b *mesosBackend) verifyTaskExists(taskID string) bool {
+func (b *mesosBackend) verifyTaskExists(taskID string, rgt *master.Response_GetTasks) bool {
 	if taskID == "" {
 		return false
 	}
 
-	b.Logger().Debug("TODO: Check task in mesos.")
-	// TODO: Verify that the task exists.
-	return temporarySetOfExistingTasks[taskID]
+	// For our purposes, any running task will be in the TASK_RUNNING state or
+	// one of the unreachable states. We start with the most likely case.
+	for _, task := range rgt.Tasks {
+		if *task.State == mesos.TASK_RUNNING && task.TaskID.Value == taskID {
+			return true
+		}
+	}
+
+	// TODO: Check unreachable tasks. Do we want to do this differently for
+	// login vs renewal?
+
+	return false
 }
 
 // verifyTaskNotLoggedIn checks that a taskID is not already logged in and
