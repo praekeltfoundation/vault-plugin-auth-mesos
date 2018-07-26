@@ -42,19 +42,15 @@ func tiKey(taskPrefix string) string {
 func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	rh := requestHelper{ctx: ctx, storage: req.Storage}
 
+	// Fetch the config first so we can return a configuration error before
+	// doing any other checks.
 	cfg, err := rh.getConfig()
 	if err != nil {
 		return nil, err
 	}
 
-	mc := mesosclient.NewClient(cfg.BaseURL)
-	rgt, err := mc.GetTasks(ctx)
-	if err != nil {
-		return nil, err
-	}
-
 	taskID := d.Get("task-id").(string)
-	if !b.verifyTaskExists(taskID, rgt) {
+	if taskID == "" {
 		return nil, logical.ErrPermissionDenied
 	}
 
@@ -63,7 +59,10 @@ func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *f
 		return nil, logical.ErrPermissionDenied
 	}
 
-	b.Logger().Info("LOGIN", "task-id", taskID, "prefix", prefix, "RemoteAddr", req.Connection.RemoteAddr)
+	b.Logger().Info("LOGIN",
+		"task-id", taskID,
+		"prefix", prefix,
+		"RemoteAddr", req.Connection.RemoteAddr)
 
 	policies, err := rh.getTaskPolicies(prefix)
 	if err != nil {
@@ -75,7 +74,17 @@ func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *f
 		return nil, err
 	}
 
-	// TODO: Make the renewal period configurable?
+	// Calling Mesos is expensive, so only do it if everything else is okay.
+	mc := mesosclient.NewClient(cfg.BaseURL)
+	rgt, err := mc.GetTasks(ctx)
+	if err != nil {
+		return nil, err
+	}
+
+	if !b.verifyTaskExists(taskID, rgt) {
+		return nil, logical.ErrPermissionDenied
+	}
+
 	return &logical.Response{
 		Auth: &logical.Auth{
 			Policies: policies,
@@ -93,10 +102,26 @@ func (b *mesosBackend) pathLogin(ctx context.Context, req *logical.Request, d *f
 func (b *mesosBackend) authRenew(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
 	rh := requestHelper{ctx: ctx, storage: req.Storage}
 
+	// Fetch the config first so we can return a configuration error before
+	// doing any other checks.
 	cfg, err := rh.getConfig()
 	if err != nil {
 		return nil, err
 	}
+
+	// :-( :-( :-( :-( :-( :-( :-( :-( :-( :-( :-(
+	taskIDorNil := req.Auth.InternalData["task-id"]
+	if taskIDorNil == nil || taskIDorNil.(string) == "" {
+		return nil, fmt.Errorf("missing task-id")
+	}
+	taskID := taskIDorNil.(string)
+
+	b.Logger().Info("RENEW",
+		"task-id", taskID,
+		"RemoteAddr", req.Connection.RemoteAddr,
+		"auth", fmt.Sprintf("%#v", req.Auth))
+
+	// TODO: Fail the renewal if the policy config has been removed or updated?
 
 	mc := mesosclient.NewClient(cfg.BaseURL)
 	rgt, err := mc.GetTasks(ctx)
@@ -104,9 +129,6 @@ func (b *mesosBackend) authRenew(ctx context.Context, req *logical.Request, d *f
 		return nil, err
 	}
 
-	b.Logger().Info("RENEW", "auth", fmt.Sprintf("%#v", req.Auth))
-
-	taskID := req.Auth.InternalData["task-id"].(string)
 	if !b.verifyTaskExists(taskID, rgt) {
 		return nil, fmt.Errorf("task %s not found during renewal", taskID)
 	}
@@ -123,10 +145,6 @@ func (b *mesosBackend) authRenew(ctx context.Context, req *logical.Request, d *f
 // verifyTaskExists checks that a taskID is valid and identifies an existing
 // task.
 func (b *mesosBackend) verifyTaskExists(taskID string, rgt *master.Response_GetTasks) bool {
-	if taskID == "" {
-		return false
-	}
-
 	// For our purposes, any running task will be in the TASK_RUNNING state or
 	// one of the unreachable states. We start with the most likely case.
 	for _, task := range rgt.Tasks {
