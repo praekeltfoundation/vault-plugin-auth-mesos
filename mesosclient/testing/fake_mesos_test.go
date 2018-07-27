@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"strings"
 	"testing"
+	"time"
 
 	mesos "github.com/mesos/mesos-go/api/v1/lib"
 	"github.com/mesos/mesos-go/api/v1/lib/master"
@@ -321,6 +322,20 @@ func (ts *FakeMesosTests) Test_API_GET_TASKS_some_tasks() {
 			Tasks: []mesos.Task{task},
 		},
 	})
+}
+
+// Even without tasks to get, we still simulate request latency.
+func (ts *FakeMesosTests) Test_API_GET_TASKS_latency() {
+	latency := 200 * time.Millisecond
+	fm := NewFakeMesos()
+	fm.SetLatency(latency)
+	ts.AddCleanup(fm.Close)
+
+	start := time.Now()
+	resp := ts.postAPI(fm.GetAPIURL(), master.Call_GET_TASKS)
+	ts.Equal(resp.StatusCode, 200)
+	elapsed := time.Since(start)
+	ts.Truef(elapsed >= latency, "Expected latency of at least %s, got %s.", latency, elapsed)
 }
 
 // getResp is a type signature hack.

@@ -34,6 +34,7 @@ func (ts *AuthTests) Test_login_no_taskID() {
 // Can't log in with a taskID that doesn't exist.
 func (ts *AuthTests) Test_login_missing_taskID() {
 	ts.SetupBackendWithMesos()
+	ts.SetTaskPolicies("missing-task", "insurance")
 	req := ts.mkReq("login", jsonobj{"task-id": "missing-task.abc-123"})
 	ts.HandleRequestError(req, "permission denied")
 }
@@ -127,9 +128,10 @@ func (ts *AuthTests) Test_login_unconfigured_or_bad() {
 	ts.SetupBackend()
 	ts.HandleRequestError(ts.mkReq("login", jsonobj{}), "backend not configured")
 
+	ts.SetTaskPolicies("task", "insurance")
 	ts.ConfigureBackend("ftp://bad")
 	errmsg := `Post ftp://bad/api/v1: unsupported protocol scheme "ftp"`
-	ts.HandleRequestError(ts.mkReq("login", jsonobj{}), errmsg)
+	ts.HandleRequestError(ts.mkReq("login", jsonobj{"task-id": "task.abc-123"}), errmsg)
 }
 
 ////////////////////////
@@ -144,6 +146,7 @@ func (ts *AuthTests) mkRenew(auth *logical.Auth) *logical.Request {
 		Auth:            auth,
 		Unauthenticated: false,
 		Storage:         ts.storage,
+		Connection:      &logical.Connection{},
 	}
 }
 
@@ -152,6 +155,19 @@ func (ts *AuthTests) Test_renewal_not_logged_in() {
 	ts.SetupBackendWithMesos()
 
 	ts.HandleRequestError(ts.mkRenew(nil), "request has no secret")
+}
+
+// Can't renew if you somehow have no taskID.
+func (ts *AuthTests) Test_renewal_no_taskID() {
+	ts.SetupBackendWithMesos()
+	ts.AddTask(mkTask("logged-in", "logged-in-task.abc-123", mesos.TASK_RUNNING))
+	ts.SetTaskPolicies("logged-in-task", "foreign")
+	auth := ts.Login("logged-in-task.abc-123")
+
+	auth.InternalData["task-id"] = ""
+	ts.HandleRequestError(ts.mkRenew(auth), "missing task-id")
+	auth.InternalData = nil
+	ts.HandleRequestError(ts.mkRenew(auth), "missing task-id")
 }
 
 // Can renew if you are logged in and your task still exists.
