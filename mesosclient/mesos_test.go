@@ -81,6 +81,22 @@ func (ts *MesosClientTests) Test_GetTasks_some_tasks() {
 	ts.Equal(rgt, &master.Response_GetTasks{Tasks: []mesos.Task{task}})
 }
 
+// We can make a successful request with a redirect.
+func (ts *MesosClientTests) Test_GetTasks_redirect() {
+	// Where we want to end up.
+	fm := mesostest.NewFakeMesos()
+	ts.AddCleanup(fm.Close)
+	// Where we start.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, fm.GetBaseURL(), http.StatusTemporaryRedirect)
+	}))
+	ts.AddCleanup(srv.Close)
+	client := NewClient(srv.URL)
+
+	rgt := ts.getTasks(client)
+	ts.Equal(rgt, &master.Response_GetTasks{})
+}
+
 // getResp is a wrapper around all the type and error juggling noise.
 func (ts *MesosClientTests) getTasks(client *Client) *master.Response_GetTasks {
 	return ts.WithoutError(client.GetTasks(context.Background())).(*master.Response_GetTasks)
