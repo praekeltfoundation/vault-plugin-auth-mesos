@@ -86,9 +86,26 @@ func (ts *MesosClientTests) Test_GetTasks_redirect() {
 	// Where we want to end up.
 	fm := mesostest.NewFakeMesos()
 	ts.AddCleanup(fm.Close)
+	redirURL := fm.GetBaseURL()[5:len(fm.GetBaseURL())]
 	// Where we start.
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		http.Redirect(w, r, fm.GetBaseURL(), http.StatusTemporaryRedirect)
+		http.Redirect(w, r, redirURL+"/api/v1", http.StatusTemporaryRedirect)
+	}))
+	ts.AddCleanup(srv.Close)
+	client := NewClient(srv.URL)
+
+	rgt := ts.getTasks(client)
+	ts.Equal(rgt, &master.Response_GetTasks{})
+}
+
+// We can make a successful request with a redirect.
+func (ts *MesosClientTests) Test_GetTasks_redirect_withscheme() {
+	// Where we want to end up.
+	fm := mesostest.NewFakeMesos()
+	ts.AddCleanup(fm.Close)
+	// Where we start.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, fm.GetBaseURL()+"/api/v1", http.StatusTemporaryRedirect)
 	}))
 	ts.AddCleanup(srv.Close)
 	client := NewClient(srv.URL)
