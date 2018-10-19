@@ -2,6 +2,7 @@ package mesosclient
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -112,6 +113,20 @@ func (ts *MesosClientTests) Test_GetTasks_redirect_withscheme() {
 
 	rgt := ts.getTasks(client)
 	ts.Equal(rgt, &master.Response_GetTasks{})
+}
+
+// We eventually fail in a redirect loop.
+func (ts *MesosClientTests) Test_GetTasks_too_many_redirects() {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		redirURL := fmt.Sprintf("//%s%s", r.Host, r.URL)
+		http.Redirect(w, r, redirURL, http.StatusTemporaryRedirect)
+	}))
+	ts.AddCleanup(srv.Close)
+	client := NewClient(srv.URL)
+
+	_, err := client.GetTasks(context.Background())
+	ts.Error(err)
+	ts.Contains(err.Error(), "too many redirects")
 }
 
 // getResp is a wrapper around all the type and error juggling noise.
