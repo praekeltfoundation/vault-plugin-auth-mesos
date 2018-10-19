@@ -3,7 +3,7 @@ package mesosclient
 import (
 	"context"
 	"fmt"
-	"net/url"
+	"strings"
 
 	"github.com/mesos/mesos-go/api/v1/lib/httpcli"
 	"github.com/mesos/mesos-go/api/v1/lib/httpcli/apierrors"
@@ -55,7 +55,8 @@ func (c *Client) makeCall(ctx context.Context, rf calls.RequestFunc) (*master.Re
 	return &respData, nil
 }
 
-// makeCallWithRedirect makes the given API call to the given URL and handles redirects.
+// makeCallWithRedirect makes the given API call to the given URL and handles
+// redirects.
 func (c *Client) makeCallWithRedirect(ctx context.Context, rf calls.RequestFunc, url string, redirs int) (*httpcli.Response, error) {
 	if redirs <= 0 {
 		return nil, fmt.Errorf("too many redirects")
@@ -63,10 +64,7 @@ func (c *Client) makeCallWithRedirect(ctx context.Context, rf calls.RequestFunc,
 	resp, err := c.getSender(url).Send(ctx, rf)
 	if apierrors.CodeNotLeader.Matches(err) {
 		res := resp.(*httpcli.Response)
-		newURL, err := buildURL(url, res.Header.Get("Location"))
-		if err != nil {
-			return nil, err
-		}
+		newURL := buildURL(url, res.Header.Get("Location"))
 		return c.makeCallWithRedirect(ctx, rf, newURL, redirs-1)
 	}
 	if err != nil {
@@ -75,17 +73,15 @@ func (c *Client) makeCallWithRedirect(ctx context.Context, rf calls.RequestFunc,
 	return resp.(*httpcli.Response), nil
 }
 
-func buildURL(oldURL, newURL string) (string, error) {
-	newParsed, err := url.Parse(newURL)
-	if err != nil {
-		return "", err
+// buildURL returns newURL as-is if it has a scheme, otherwise it sticks the
+// scheme from oldURL on the front and returns that. We use string juggling
+// instead of net/url because I'm so tired of having to "handle" "errors"
+// everywhere.
+func buildURL(oldURL, newURL string) string {
+	if strings.HasPrefix(newURL, "//") {
+		// No scheme, so copy the one from the old URL.
+		scheme := strings.SplitN(oldURL, "//", 2)[0]
+		return scheme + newURL
 	}
-	if newParsed.Scheme == "" {
-		oldParsed, err := url.Parse(oldURL)
-		if err != nil {
-			return "", err
-		}
-		return oldParsed.Scheme + ":" + newURL, nil
-	}
-	return newURL, nil
+	return newURL
 }
