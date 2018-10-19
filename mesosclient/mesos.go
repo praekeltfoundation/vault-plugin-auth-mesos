@@ -76,7 +76,6 @@ func (c *Client) makeCallWithRedirect(ctx context.Context, rf calls.RequestFunc,
 }
 
 func buildURL(oldURL, newURL string) (string, error) {
-	fmt.Println("Old:", oldURL, "New:", newURL)
 	newParsed, err := url.Parse(newURL)
 	if err != nil {
 		return "", err
