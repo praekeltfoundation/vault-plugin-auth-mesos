@@ -95,8 +95,8 @@ func (fm *FakeMesos) handleAPI(w http.ResponseWriter, r *http.Request) {
 	// fail, we just ignore any errors and pretend they're valid zero-value
 	// requests.
 	var call master.Call
-	bytes, _ := ioutil.ReadAll(r.Body)
-	_ = call.Unmarshal(bytes)
+	bytes, _ := ioutil.ReadAll(r.Body) // #nosec G104
+	_ = call.Unmarshal(bytes)          // #nosec G104
 	switch call.Type {
 	case master.Call_GET_TASKS:
 		fm.respondGetTasks(w)
@@ -132,9 +132,9 @@ func (fm *FakeMesos) getTasks() *master.Response_GetTasks {
 func copyTask(taskIn *mesos.Task) mesos.Task {
 	// We ignore all errors, because we expect the generated serialisation code
 	// to correctly-roud-trip any task we give it.
-	bytes, _ := taskIn.Marshal()
+	bytes, _ := taskIn.Marshal() // #nosec G104
 	var taskOut mesos.Task
-	_ = taskOut.Unmarshal(bytes)
+	_ = taskOut.Unmarshal(bytes) // #nosec G104
 	return taskOut
 }
 
@@ -149,7 +149,7 @@ func (fm *FakeMesos) respondGetTasks(w http.ResponseWriter) {
 	data, err := resp.Marshal()
 	err2panic(err)
 	w.Header().Set("Content-Type", "application/x-protobuf")
-	_, _ = w.Write(data)
+	_, _ = w.Write(data) // #nosec G104
 }
 
 // AddTask adds one or more new tasks to fake Mesos. Panics if a task already

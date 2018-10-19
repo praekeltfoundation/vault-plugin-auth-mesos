@@ -48,7 +48,7 @@ func (ts *MesosClientTests) Test_bad_response() {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Claim to return protobuf data, but actually return garbage instead.
 		w.Header().Set("Content-Type", "application/x-protobuf")
-		_, _ = w.Write([]byte("this is not a protobuf"))
+		_, _ = w.Write([]byte("this is not a protobuf")) // #nosec G104
 	})
 	srv := httptest.NewServer(handler)
 	ts.AddCleanup(srv.Close)
