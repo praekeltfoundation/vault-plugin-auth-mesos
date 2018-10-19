@@ -12,23 +12,41 @@ import (
 
 // Client is a Mesos API client.
 type Client struct {
-	sender calls.Sender
+	url string
 }
 
 // NewClient builds a new Client object that queries a Mesos API endpoint at
 // the given base URL. The baseURL parameter should have the form
 // "http://host:port".
 func NewClient(baseURL string) *Client {
-	endpoint := httpcli.Endpoint(fmt.Sprintf("%s/api/v1", baseURL))
 	return &Client{
-		sender: httpmaster.NewSender(httpcli.New(endpoint).Send),
+		url: fmt.Sprintf("%s/api/v1", baseURL),
 	}
+}
+
+// getSender returns a Sender for the given URL.
+func (c *Client) getSender(url string) calls.Sender {
+	return httpmaster.NewSender(httpcli.New(httpcli.Endpoint(url)).Send)
+}
+
+// getDefaultSender returns a Sender for the default URL.
+func (c *Client) getDefaultSender() calls.Sender {
+	return c.getSender(c.url)
 }
 
 // GetTasks makes a GET_TASKS API call and returns the collection of tasks.
 func (c *Client) GetTasks(ctx context.Context) (*master.Response_GetTasks, error) {
-	gt := calls.GetTasks()
-	resp, err := c.sender.Send(ctx, calls.NonStreaming(gt))
+	respData, err := c.makeCall(ctx, calls.NonStreaming(calls.GetTasks()))
+	if err != nil {
+		return nil, err
+	}
+
+	return respData.GetTasks, nil
+}
+
+// makeCall makes the given API call and returns the response.
+func (c *Client) makeCall(ctx context.Context, rf calls.RequestFunc) (*master.Response, error) {
+	resp, err := c.getDefaultSender().Send(ctx, rf)
 	if err != nil {
 		return nil, err
 	}
@@ -37,5 +55,5 @@ func (c *Client) GetTasks(ctx context.Context) (*master.Response_GetTasks, error
 		return nil, err
 	}
 
-	return respData.GetTasks, nil
+	return &respData, nil
 }
