@@ -2,6 +2,7 @@ package mesosclient
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -47,7 +48,7 @@ func (ts *MesosClientTests) Test_bad_response() {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		// Claim to return protobuf data, but actually return garbage instead.
 		w.Header().Set("Content-Type", "application/x-protobuf")
-		_, _ = w.Write([]byte("this is not a protobuf"))
+		_, _ = w.Write([]byte("this is not a protobuf")) // #nosec G104
 	})
 	srv := httptest.NewServer(handler)
 	ts.AddCleanup(srv.Close)
@@ -79,6 +80,53 @@ func (ts *MesosClientTests) Test_GetTasks_some_tasks() {
 
 	rgt := ts.getTasks(client)
 	ts.Equal(rgt, &master.Response_GetTasks{Tasks: []mesos.Task{task}})
+}
+
+// We can make a successful request with a redirect.
+func (ts *MesosClientTests) Test_GetTasks_redirect() {
+	// Where we want to end up.
+	fm := mesostest.NewFakeMesos()
+	ts.AddCleanup(fm.Close)
+	redirURL := fm.GetBaseURL()[5:len(fm.GetBaseURL())]
+	// Where we start.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, redirURL+"/api/v1", http.StatusTemporaryRedirect)
+	}))
+	ts.AddCleanup(srv.Close)
+	client := NewClient(srv.URL)
+
+	rgt := ts.getTasks(client)
+	ts.Equal(rgt, &master.Response_GetTasks{})
+}
+
+// We can make a successful request with a redirect.
+func (ts *MesosClientTests) Test_GetTasks_redirect_withscheme() {
+	// Where we want to end up.
+	fm := mesostest.NewFakeMesos()
+	ts.AddCleanup(fm.Close)
+	// Where we start.
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		http.Redirect(w, r, fm.GetBaseURL()+"/api/v1", http.StatusTemporaryRedirect)
+	}))
+	ts.AddCleanup(srv.Close)
+	client := NewClient(srv.URL)
+
+	rgt := ts.getTasks(client)
+	ts.Equal(rgt, &master.Response_GetTasks{})
+}
+
+// We eventually fail in a redirect loop.
+func (ts *MesosClientTests) Test_GetTasks_too_many_redirects() {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		redirURL := fmt.Sprintf("//%s%s", r.Host, r.URL)
+		http.Redirect(w, r, redirURL, http.StatusTemporaryRedirect)
+	}))
+	ts.AddCleanup(srv.Close)
+	client := NewClient(srv.URL)
+
+	_, err := client.GetTasks(context.Background())
+	ts.Error(err)
+	ts.Contains(err.Error(), "too many redirects")
 }
 
 // getResp is a wrapper around all the type and error juggling noise.
