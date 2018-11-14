@@ -19,6 +19,7 @@ func pathTaskPolicies(b *mesosBackend) *framework.Path {
 		},
 		Callbacks: map[logical.Operation]framework.OperationFunc{
 			logical.UpdateOperation: b.pathTaskPoliciesUpdate,
+			logical.ReadOperation:   b.pathTaskPoliciesRead,
 		},
 	}
 }
@@ -56,4 +57,32 @@ func (b *mesosBackend) pathTaskPoliciesUpdate(ctx context.Context, req *logical.
 
 	err := rh.store(tpKey(taskIDPrefix), mkTaskPolicies(policies))
 	return &logical.Response{}, err
+}
+
+// pathTaskPoliciesRead is the "task-policies" read request handler.
+func (b *mesosBackend) pathTaskPoliciesRead(ctx context.Context, req *logical.Request, d *framework.FieldData) (*logical.Response, error) {
+	rh := requestHelper{ctx: ctx, storage: req.Storage}
+
+	taskIDPrefix := d.Get("task-id-prefix").(string)
+	if len(taskIDPrefix) == 0 {
+		return logical.ErrorResponse("missing or invalid task-id-prefix"), nil
+	}
+
+	var tp taskPolicies
+	decode := func(se *logical.StorageEntry) error {
+		if se == nil {
+			// Empty taskPolicies struct.
+			return nil
+		}
+		return se.DecodeJSON(&tp)
+	}
+	err := rh.fetch(tpKey(taskIDPrefix), decode)
+	// A fetch failure will leave us with a valid but empty taskPolicies value,
+	// and any response we return alongside an error will be ignored.
+	resp := &logical.Response{
+		Data: jsonobj{
+			"policies": tp.Policies,
+		},
+	}
+	return resp, err
 }
